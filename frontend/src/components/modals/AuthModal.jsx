@@ -1,0 +1,214 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useDispatch, useSelector } from 'react-redux';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { LoginForm } from '@/components/ui/login-form';
+import { SignupForm } from '@/components/ui/signup-form';
+import { HeroImage } from '@/components/ui/hero-image';
+
+import { login, register as registerUser, clearError } from '@/store/slices/authSlice';
+import { closeAuthModal, setAuthModalView } from '@/store/slices/uiSlice';
+// Removed VisuallyHidden import
+
+// Validation schemas
+const loginSchema = yup.object({
+  email: yup.string().email('Invalid email address').required('Email is required'),
+  password: yup.string().required('Password is required'),
+});
+
+const registerSchema = yup.object({
+  email: yup.string().email('Invalid email address').required('Email is required'),
+  password: yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
+  confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm Password is required'),
+  firstName: yup.string().min(2, 'First name must be at least 2 characters'),
+  lastName: yup.string().min(2, 'Last name must be at least 2 characters'),
+});
+
+export function AuthModal() {
+  const dispatch = useDispatch();
+  const { isAuthModalOpen, authModalView } = useSelector((state) => state.ui);
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+  
+  // Local state for the animation view, synced with Redux
+  const [isLoginView, setIsLoginView] = useState(true);
+
+  useEffect(() => {
+    setIsLoginView(authModalView === 'login');
+  }, [authModalView]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(closeAuthModal());
+    }
+  }, [isAuthenticated, dispatch]);
+
+  const handleClose = () => {
+    dispatch(closeAuthModal());
+    dispatch(clearError());
+  };
+
+  // Login Form Hooks
+  const { 
+    register: loginRegister, 
+    handleSubmit: handleLoginSubmit, 
+    formState: { errors: loginErrors },
+    reset: resetLogin
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+  });
+
+  // Register Form Hooks
+  const { 
+    register: signupRegister, 
+    handleSubmit: handleSignupSubmit, 
+    formState: { errors: signupErrors },
+    reset: resetSignup
+  } = useForm({
+    resolver: yupResolver(registerSchema),
+  });
+
+  // Reset forms when modal closes or view changes
+  useEffect(() => {
+    if (!isAuthModalOpen) {
+      resetLogin();
+      resetSignup();
+      dispatch(clearError());
+    }
+  }, [isAuthModalOpen, resetLogin, resetSignup, dispatch]);
+
+  const onLogin = (data) => {
+    dispatch(clearError());
+    dispatch(login(data));
+  };
+
+  const onRegister = (data) => {
+    dispatch(clearError());
+    const { confirmPassword, ...userData } = data;
+    dispatch(registerUser(userData));
+  };
+
+  const toggleView = (isLogin) => {
+    dispatch(setAuthModalView(isLogin ? 'login' : 'signup'));
+    dispatch(clearError());
+  };
+
+  // Mouse hover effect (optional, simplified for modal)
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <Dialog open={isAuthModalOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-w-5xl w-[95vw] h-[600px] p-0 overflow-hidden bg-[var(--color-surface)] border-[var(--color-border)] rounded-3xl gap-0">
+         {/* Accessibility Requirements for Radix Dialog */}
+        <DialogTitle className="sr-only">Authentication</DialogTitle>
+        <DialogDescription className="sr-only">
+          {isLoginView ? "Login to your account" : "Create a new account"}
+        </DialogDescription>
+
+        <div 
+          className="relative w-full h-full flex overflow-hidden"
+          onMouseMove={handleMouseMove}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+        >
+          {/* Animated Background Blob */}
+          <div 
+            className={`absolute pointer-events-none w-[500px] h-[500px] bg-gradient-to-r from-purple-400/20 via-blue-400/20 to-pink-400/20 dark:from-purple-300/15 dark:via-blue-300/15 dark:to-pink-300/15 rounded-full blur-3xl transition-opacity duration-300 z-0 ${
+              isHovering ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              transform: `translate(${mousePosition.x - 250}px, ${mousePosition.y - 250}px)`,
+              transition: 'transform 0.1s ease-out'
+            }}
+          />
+
+          {/* Error Toast inside Modal */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="absolute top-4 right-4 z-50 rounded-xl bg-red-50 dark:bg-red-900/30 p-4 shadow-xl border border-red-200 dark:border-red-800 backdrop-blur-md"
+              >
+                <div className="text-sm font-medium text-red-800 dark:text-red-200">{error}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Left Panel Content (Login Form) */}
+          <motion.div
+            className="absolute top-0 left-0 w-full lg:w-1/2 h-full z-10 bg-[var(--color-surface)]"
+            initial={{ x: 0, opacity: 1 }}
+            animate={{ 
+              x: isLoginView ? 0 : "-100%",
+              opacity: isLoginView ? 1 : 0 
+            }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          >
+            <LoginForm 
+              onSubmit={handleLoginSubmit(onLogin)} 
+              register={loginRegister} 
+              errors={loginErrors} 
+              loading={loading} 
+            />
+          </motion.div>
+
+          {/* Right Panel Content (Register Form) */}
+          <motion.div
+            className="absolute top-0 right-0 w-full lg:w-1/2 h-full z-0 flex items-center justify-center bg-[var(--color-surface)]"
+            initial={{ opacity: 0 }}
+            animate={{ 
+              opacity: isLoginView ? 0 : 1,
+              // Move it into view when active
+              zIndex: isLoginView ? 0 : 10
+            }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+             <SignupForm 
+              onSubmit={handleSignupSubmit(onRegister)} 
+              register={signupRegister} 
+              errors={signupErrors} 
+              loading={loading}
+              onLoginClick={() => toggleView(true)}
+            />
+          </motion.div>
+
+          {/* Hero Image Overlay - Slides between sides */}
+          <motion.div
+            className="hidden lg:block absolute top-0 w-1/2 h-full z-20 overflow-hidden"
+            initial={false}
+            animate={{ 
+              left: isLoginView ? "50%" : "0%" 
+            }}
+            transition={{ type: "spring", stiffness: 200, damping: 25, duration: 0.6 }}
+          >
+            <HeroImage 
+              isLoginView={isLoginView} 
+              onToggle={() => toggleView(!isLoginView)} 
+            />
+          </motion.div>
+          
+           {/* Mobile Toggle Button (Visible only on small screens) */}
+           <div className="lg:hidden absolute bottom-4 left-0 w-full text-center z-30">
+             <button 
+               onClick={() => toggleView(!isLoginView)}
+               className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline"
+             >
+               {isLoginView ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+             </button>
+           </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
