@@ -15,7 +15,7 @@ export function RightSidebar() {
   ];
 
   return (
-    <div className="hidden lg:flex flex-col h-[calc(100vh-64px)] sticky top-16 pt-6 pb-8 px-4 w-[300px] border-l border-border/40 gap-8 overflow-y-auto">
+    <div className="hidden xl:flex flex-col h-[calc(100vh-64px)] sticky top-16 w-[290px] shrink-0 pt-6 pb-8 px-4 border-l border-border/40 gap-8 overflow-y-auto scrollbar-hide">
       
       {/* Search (Optional placeholder) */}
       <div className="relative">
@@ -65,3 +65,4 @@ export function RightSidebar() {
     </div>
   );
 }
+

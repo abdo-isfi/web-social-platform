@@ -57,8 +57,7 @@ export function ProfilePage() {
     bio: "Please log in to see your full profile.",
     followers: 0,
     following: 0,
-    avatar: "https://github.com/shadcn.png" {isOwnProfile && (
-                 <div
+    avatar: "https://github.com/shadcn.png" 
   };
 
   const isOwnProfile = isAuthenticated && user?.id; // Simplified check for /profile/me context

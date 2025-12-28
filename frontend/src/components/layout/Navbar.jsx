@@ -30,9 +30,9 @@ export function Navbar() {
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-50 flex flex-col items-center bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
+    <header className="fixed top-0 left-0 md:left-[10vw] lg:left-[17.5vw] right-0 md:right-[10vw] lg:right-[17.5vw] z-50 flex flex-col items-center bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
 
-      <div className="flex items-center justify-between w-full max-w-7xl mx-auto px-4 py-3 h-16">
+      <div className="flex items-center justify-between w-full px-4 py-3 h-16">
         
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
