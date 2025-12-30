@@ -7,7 +7,7 @@ import {
   MoreHorizontal,
   Link as LinkIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function SocialCard({
   author,
@@ -18,11 +18,19 @@ export function SocialCard({
   onShare,
   onBookmark,
   onMore,
-  className
+  className,
+  children
 }) {
   const [isLiked, setIsLiked] = useState(engagement?.isLiked ?? false);
   const [isBookmarked, setIsBookmarked] = useState(engagement?.isBookmarked ?? false);
   const [likes, setLikes] = useState(engagement?.likes ?? 0);
+
+  // Sync state with props when data is re-fetched
+  useEffect(() => {
+    setIsLiked(engagement?.isLiked ?? false);
+    setLikes(engagement?.likes ?? 0);
+    setIsBookmarked(engagement?.isBookmarked ?? false);
+  }, [engagement?.isLiked, engagement?.likes, engagement?.isBookmarked]);
 
   const handleLike = () => {
     setIsLiked(!isLiked);
@@ -179,6 +187,11 @@ export function SocialCard({
               )} />
             </button>
           </div>
+
+          {/* Optional Children (Comments) */}
+          {children && (
+             children
+          )}
         </div>
       </div>
     </div>

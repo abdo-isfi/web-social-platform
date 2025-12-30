@@ -23,7 +23,9 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       localStorage.setItem('token', action.payload.token);
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
+      if (action.payload.user) {
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      }
     },
     loginFailure: (state, action) => {
       state.loading = false;
@@ -47,7 +49,9 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       localStorage.setItem('token', action.payload.token);
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
+      if (action.payload.user) {
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      }
     },
     registerFailure: (state, action) => {
       state.loading = false;
@@ -65,32 +69,21 @@ const authSlice = createSlice({
   },
 });
 
-// Thunk actions (mocked for now)
+// Thunk actions using real API
 export const login = (credentials) => async (dispatch) => {
   dispatch(loginStart());
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { authService } = await import('@/services/auth.service');
+    const response = await authService.login(credentials);
     
-    // Mock successful login
-    const mockUser = {
-      id: '1',
-      username: 'johndoe',
-      email: credentials.email,
-      avatar: 'https://github.com/shadcn.png',
-      name: 'John Doe',
-      followers: 120,
-      following: 50,
-      banner: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop',
-      location: 'New York, USA',
-      website: 'https://example.com',
-      birthday: '1990-01-01',
-    };
-    
-    dispatch(loginSuccess({ user: mockUser, token: 'mock-jwt-token' }));
+    dispatch(loginSuccess({ 
+      user: response.user, 
+      token: response.accessToken 
+    }));
     return true;
   } catch (error) {
-    dispatch(loginFailure(error.message || 'Login failed'));
+    const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+    dispatch(loginFailure(errorMessage));
     return false;
   }
 };
@@ -98,22 +91,42 @@ export const login = (credentials) => async (dispatch) => {
 export const register = (userData) => async (dispatch) => {
   dispatch(registerStart());
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { authService } = await import('@/services/auth.service');
+    const response = await authService.register(userData);
     
-    const mockUser = {
-      id: '2',
-      username: userData.email.split('@')[0],
-      email: userData.email,
-      name: `${userData.firstName} ${userData.lastName}`,
-      avatar: 'https://github.com/shadcn.png',
-      banner: 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop',
-    };
-    
-    dispatch(registerSuccess({ user: mockUser, token: 'mock-jwt-token' }));
+    dispatch(registerSuccess({ 
+      user: response.user, 
+      token: response.accessToken 
+    }));
     return true;
   } catch (error) {
-    dispatch(registerFailure(error.message || 'Registration failed'));
+    const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+    dispatch(registerFailure(errorMessage));
+    return false;
+  }
+};
+
+export const updateUserProfile = (userId, data, isFormData) => async (dispatch) => {
+  try {
+    const { userService } = await import('@/services/user.service');
+    // Note: userId is largely ignored by service now as it uses /me, but kept for consistency if needed or we can drop it.
+    // user.service updateProfile signature: (data, isFormData)
+    const response = await userService.updateProfile(data, isFormData);
+    
+    // Response should be { success: true, data: { ... } } or just the data depending on service.
+    // user.service uses api.patch which returns response.data (nested data). 
+    // And user.controller returns { success: true, data: userResponse }.
+    // api.js interceptor returns response.data (the json).
+    // So response in service is json.
+    // So response.data is the user object.
+    
+    // We need to dispatch updateUser to update local state
+    if (response.data) {
+        dispatch(updateUser(response.data));
+    }
+    return true;
+  } catch (error) {
+    console.error("Update profile failed", error);
     return false;
   }
 };

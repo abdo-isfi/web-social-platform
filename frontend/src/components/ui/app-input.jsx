@@ -5,18 +5,18 @@ const AppInput = (props) => {
 
   return (
     <div className="w-full min-w-[200px] relative">
-      {label && <label className='block mb-2 text-sm font-medium text-foreground'>
+      {label && <label className='block mb-2 text-sm font-medium text-[var(--color-text-primary)]'>
         {label}
       </label>}
       <div className="relative w-full">
         <input
           type="text"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`peer relative z-10 w-full h-12 px-4 py-3.5 rounded-xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] font-medium text-base outline-none shadow-sm transition-all duration-300 ease-in-out hover:border-purple-400/50 dark:hover:border-purple-500/50 focus:border-transparent focus:ring-2 focus:ring-purple-500/50 dark:focus:ring-purple-400/50 focus:shadow-lg focus:shadow-purple-500/20 dark:focus:shadow-purple-400/20 focus:bg-[var(--color-bg)] disabled:opacity-50 disabled:cursor-not-allowed ${icon ? 'pr-12' : ''}`}
           placeholder={placeholder}
           {...rest}
         />
         {icon && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 text-muted-foreground">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 text-[var(--color-text-secondary)]">
             {icon}
           </div>
         )}

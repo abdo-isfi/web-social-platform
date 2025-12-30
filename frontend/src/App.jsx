@@ -7,6 +7,8 @@ import { BookmarksPage } from '@/pages/BookmarksPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useSelector, useDispatch } from 'react-redux';
 import { loginSuccess } from '@/store/slices/authSlice';
+import socketService from '@/services/socket';
+import { addNotification } from '@/store/slices/notificationsSlice';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -47,6 +49,28 @@ function App() {
     }
     setIsRehydrating(false);
   }, [dispatch]);
+
+  // Socket Connection Handling
+  const { isAuthenticated, token, user } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    if (isAuthenticated && token && user) {
+      const socket = socketService.connect(token);
+      
+      // Register user ID for private events
+      socket.emit('register', user._id || user.id);
+
+      socketService.on('notification:new', (notification) => {
+        dispatch(addNotification(notification));
+        // Optional: Play sound or show toast
+      });
+
+      return () => {
+        socketService.off('notification:new');
+        socketService.disconnect();
+      };
+    }
+  }, [isAuthenticated, token, user, dispatch]);
 
   if (isRehydrating) {
     return null; // Or a loading spinner

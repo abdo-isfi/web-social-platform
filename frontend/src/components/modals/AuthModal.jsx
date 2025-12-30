@@ -87,9 +87,17 @@ export function AuthModal() {
 
   const onRegister = (data) => {
     dispatch(clearError());
-    const { confirmPassword, ...userData } = data;
+    const { confirmPassword, ...rest } = data;
+    
+    // Send raw data, backend handles username generation
+    const userData = {
+      ...rest,
+      isPrivate: false
+    };
+    
     dispatch(registerUser(userData));
   };
+
 
   const toggleView = (isLogin) => {
     dispatch(setAuthModalView(isLogin ? 'login' : 'signup'));

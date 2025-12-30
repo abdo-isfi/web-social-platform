@@ -1,162 +1,206 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { SocialCard } from '@/components/ui/social-card';
 import { CreatePost } from '@/components/feed/CreatePost';
-import { Link as LinkIcon } from "lucide-react";
+import { PostSkeleton } from '@/components/ui/PostSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-
-import { useSelector } from 'react-redux';
+import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost } from '@/store/slices/postSlice';
+import { MessageSquare } from 'lucide-react';
+import { CommentDialog } from '@/components/feed/CommentDialog';
+import { postService } from '@/services/post.service';
+import { PostComments } from '@/components/feed/PostComments';
 
 export function Feed() {
+  const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
   const { feedMode } = useSelector(state => state.ui);
+  const { posts, loading, error } = useSelector(state => state.posts);
+  const { user } = useSelector(state => state.auth);
 
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      author: {
-        name: "Dorian Baffier",
-        username: "dorian_baffier",
-        avatar: "https://github.com/shadcn.png",
-        timeAgo: "2h ago",
-      },
-      content: {
-        text: "Just launched Kokonut UI! Check out the documentation and let me know what you think 🎨. Built with React and Tailwind CSS.",
-        link: {
-          title: "Kokonut UI Documentation",
-          description: "A comprehensive guide to Kokonut UI",
-          icon: <LinkIcon className="w-5 h-5 text-blue-500" />,
-        },
-      },
-      engagement: {
-        likes: 128,
-        comments: 32,
-        shares: 24,
-        isLiked: false,
-        isBookmarked: false,
-      },
-    },
-    {
-      id: 2,
-      author: {
-        name: "Sarah Connor",
-        username: "sarahc",
-        avatar: "https://i.pravatar.cc/150?u=4",
-        timeAgo: "4h ago",
-      },
-      content: {
-        text: "The future is not set. There is no fate but what we make for ourselves. Also, loving the new React 19 features! 🤖 #coding #reactjs",
-      },
-      engagement: {
-        likes: 842,
-        comments: 156,
-        shares: 92,
-        isLiked: true,
-        isBookmarked: true,
-      },
-    },
-     {
-      id: 3,
-      author: {
-        name: "Alex Chen",
-        username: "alexc",
-        avatar: "https://i.pravatar.cc/150?u=8",
-        timeAgo: "6h ago",
-      },
-      content: {
-        text: "Just pushed the new authentication flow to production. Modal-based auth is definitely the way to go for better UX context retention. 🔐",
-      },
-      engagement: {
-        likes: 45,
-        comments: 12,
-        shares: 5,
-        isLiked: false,
-        isBookmarked: false,
-      },
-    }
-  ]);
+  // Fetch posts on mount
+  useEffect(() => {
+    dispatch(fetchPosts({ page: 1, limit: 20 }));
+  }, [dispatch]);
 
-  const handleAction = (id, action) => {
+  const [recentComments, setRecentComments] = React.useState({});
+
+  const handleNewPost = (data) => {
     requireAuth(() => {
-      console.log(`Card ${id}: ${action}`);
-      if (action === 'liked') {
-         setPosts(current => current.map(post => {
-           if (post.id === id) {
-             const newIsLiked = !post.engagement.isLiked;
-             return {
-               ...post,
-               engagement: {
-                 ...post.engagement,
-                 isLiked: newIsLiked,
-                 likes: newIsLiked ? post.engagement.likes + 1 : post.engagement.likes - 1
-               }
-             };
-           }
-           return post;
-         }));
+      dispatch(createPost({
+        content: data.content,
+        media: data.media,
+      }));
+    }, 'login');
+  };
+
+  const handleLike = (postId, isLiked) => {
+    requireAuth(() => {
+      if (isLiked) {
+        dispatch(unlikePost(postId));
+      } else {
+        dispatch(likePost(postId));
       }
     }, 'login');
   };
 
-  const handleNewPost = (data) => {
+  const [replyingTo, setReplyingTo] = React.useState(null);
+  const [replying, setReplying] = React.useState(false);
+
+  const handleAction = (id, action) => {
     requireAuth(() => {
-        const newPost = {
-            id: Date.now(),
-            author: {
-                name: "Current User", // In real app, get from Redux
-                username: "currentuser",
-                avatar: "https://github.com/shadcn.png",
-                timeAgo: "Just now"
-            },
-            content: {
-                text: data.content,
-                media: data.media // Pass media if needed by SocialCard (not supported yet, but robust)
-            },
-            engagement: {
-                likes: 0,
-                comments: 0,
-                shares: 0,
-                isLiked: false,
-                isBookmarked: false
-            }
-        };
-        setPosts(prev => [newPost, ...prev]);
+      if (action === 'commented') {
+         setReplyingTo(id);
+      } else if (action === 'bookmarked') {
+         dispatch(bookmarkPost(id));
+      }
+      console.log(`Post ${id}: ${action}`);
     }, 'login');
   };
 
+  const handleReplySubmit = async (content) => {
+      if (!replyingTo) return;
+      setReplying(true);
+      console.log('Submitting reply to:', replyingTo, 'Content:', content);
+      try {
+          // Dispatch comment action
+          const resultAction = await dispatch(addComment({ postId: replyingTo, content }));
+          if (addComment.fulfilled.match(resultAction)) {
+             // resultAction.payload is { postId, comment }
+             const { comment } = resultAction.payload;
+             setRecentComments(prev => ({
+                 ...prev,
+                 [replyingTo]: comment
+             }));
+          }
+          
+          setReplyingTo(null);
+      } catch (error) {
+          console.error("Failed to reply", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
+  // Filter posts based on feed mode
+  const filteredPosts = feedMode === 'following'
+    ? posts.filter(post => post.author?.isFollowing)
+    : posts;
+
+  // Loading state
+  if (loading && posts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <CreatePost onPost={handleNewPost} />
+        <PostSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && posts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <CreatePost onPost={handleNewPost} />
+        <EmptyState
+          icon={<MessageSquare className="w-16 h-16" />}
+          title="Unable to load posts"
+          description={error || "There was an error loading the feed. Please try again later."}
+        />
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!loading && filteredPosts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <CreatePost onPost={handleNewPost} />
+        <EmptyState
+          icon={<MessageSquare className="w-16 h-16" />}
+          title={feedMode === 'following' ? "No posts from people you follow" : "No posts yet"}
+          description={
+            feedMode === 'following'
+              ? "Follow some users to see their posts here."
+              : "Be the first to create a post!"
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Create Post Input (Placeholder) */}
       <CreatePost onPost={handleNewPost} />
 
-      {posts
-        .filter(post => {
-          if (feedMode === 'following') {
-            // Mock logic: Show only even IDs for restricted feel
-            return post.id % 2 === 0;
-          }
-          return true;
-        })
-        .map(post => (
+      {filteredPosts.map(post => (
         <SocialCard
-          key={post.id}
-          {...post}
-          onLike={() => handleAction(post.id, 'liked')}
-          onComment={() => handleAction(post.id, 'commented')}
-          onShare={() => handleAction(post.id, 'shared')}
-          onBookmark={() => handleAction(post.id, 'bookmarked')}
-          onMore={() => handleAction(post.id, 'more')} 
-        />
+          key={post._id || post.id}
+          id={post._id || post.id}
+          author={{
+            name: post.author?.name || post.author?.username || 'Unknown',
+            username: post.author?.username || 'unknown',
+            avatar: post.author?.avatar || 'https://github.com/shadcn.png',
+            timeAgo: post.createdAt ? getTimeAgo(post.createdAt) : 'Just now',
+          }}
+          content={{
+            text: post.content || post.text || '',
+            media: post.media || [],
+            link: post.link,
+          }}
+          engagement={{
+            likes: post.likeCount || 0,
+            comments: post.commentCount || 0,
+            shares: post.shares || 0,
+            isLiked: post.isLiked || false,
+            isBookmarked: post.isBookmarked || false,
+          }}
+          onLike={() => handleLike(post._id || post.id, post.isLiked)}
+          onComment={() => handleAction(post._id || post.id, 'commented')}
+          onShare={() => handleAction(post._id || post.id, 'shared')}
+          onBookmark={() => handleAction(post._id || post.id, 'bookmarked')}
+          onMore={() => handleAction(post._id || post.id, 'more')}
+        >
+             <PostComments 
+                postId={post._id || post.id} 
+                newComment={recentComments[post._id || post.id]}
+             />
+        </SocialCard>
       ))}
+
+      {loading && <PostSkeleton />}
       
-      {feedMode === 'following' && posts.filter(p => p.id % 2 === 0).length === 0 && (
-         <div className="text-center py-12 text-muted-foreground">
-           <p>You aren't following anyone yet.</p>
-         </div>
-      )}
-      
-      <div className="text-center py-8 text-muted-foreground text-sm">
-        <p>You've reached the end of the demo feed.</p>
-      </div>
+      <CommentDialog 
+        open={!!replyingTo} 
+        onOpenChange={(open) => !open && setReplyingTo(null)}
+        onSubmit={handleReplySubmit}
+        loading={replying}
+      />
     </div>
   );
+}
+
+// Helper function to calculate time ago
+function getTimeAgo(date) {
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+  
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    week: 604800,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+  };
+
+  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+    const interval = Math.floor(seconds / secondsInUnit);
+    if (interval >= 1) {
+      return `${interval}${unit[0]}`;
+    }
+  }
+
+  return 'Just now';
 }

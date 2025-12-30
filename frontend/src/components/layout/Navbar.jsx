@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon, LayoutGrid, Users } from 'lucide-react';
 import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
@@ -36,10 +37,10 @@ export function Navbar() {
         
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <a href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
             {logoElement}
             <span className="ml-2 font-bold hidden sm:block text-xl">Social</span>
-          </a>
+          </Link>
         </div>
 
         {/* Center: Feed Toggle (Desktop) */}
@@ -87,13 +88,13 @@ export function Navbar() {
           {isAuthenticated ? (
             <>
               <NotificationsPopover />
-              <a href="/profile/me">
+              <Link to="/profile/me">
                 <img 
                   src={user?.avatar || "https://github.com/shadcn.png"} 
                   alt="Profile" 
                   className="w-9 h-9 rounded-full border border-border cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
                 />
-              </a>
+              </Link>
             </>
           ) : (
             <>
@@ -149,20 +150,20 @@ export function Navbar() {
           </div>
 
           <nav className="flex flex-col space-y-1">
-            <a href="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+            <Link to="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
               <Home className="w-5 h-5" /> Home
-            </a>
+            </Link>
             {isAuthenticated && (
               <>
-                <a href="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                <Link to="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
                   <User className="w-5 h-5" /> Profile
-                </a>
-                <a href="/bookmarks" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                </Link>
+                <Link to="/bookmarks" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
                   <Bookmark className="w-5 h-5" /> Bookmarks
-                </a>
-                <a href="/settings" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                </Link>
+                <Link to="/settings" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
                   <Settings className="w-5 h-5" /> Settings
-                </a>
+                </Link>
               </>
             )}
              {!isAuthenticated && (

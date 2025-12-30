@@ -4,6 +4,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { openAuthModal } from '@/store/slices/uiSlice';
 import { logout } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
+import { NavLink } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import { NotificationsPopover } from '@/components/notifications/NotificationsPopover'; // We might re-use popover here or just link
 
 export function LeftSidebar() {
@@ -36,14 +38,19 @@ export function LeftSidebar() {
           if (item.auth && !isAuthenticated) return null;
 
           return (
-            <a 
+            <NavLink 
               key={index} 
-              href={item.href}
-              className="flex items-center gap-4 p-3 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all duration-200 w-fit"
+              to={item.href}
+              className={({ isActive }) => cn(
+                "flex items-center gap-4 p-3 rounded-full transition-all duration-200 w-fit",
+                isActive 
+                  ? "bg-zinc-200 dark:bg-zinc-800 font-bold" 
+                  : "hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              )}
             >
               {item.icon}
-              <span className="text-xl font-medium hidden lg:block">{item.label}</span>
-            </a>
+              <span className="text-xl hidden lg:block">{item.label}</span>
+            </NavLink>
           );
         })}
       </nav>

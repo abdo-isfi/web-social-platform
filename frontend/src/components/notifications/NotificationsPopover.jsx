@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { markAsRead, markAllAsRead } from "@/store/slices/notificationsSlice";
+import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/store/slices/notificationsSlice";
+import { followerService } from "@/services/follower.service";
+import { cn } from "@/lib/utils";
 
 function Dot() {
   return (
@@ -22,16 +24,94 @@ function Dot() {
   );
 }
 
+function NotificationItem({ notification, onClick }) {
+    const [isFollowing, setIsFollowing] = React.useState(notification.isFollowing);
+    const [loading, setLoading] = React.useState(false);
+
+    const handleFollow = async (e) => {
+        e.stopPropagation();
+        try {
+            setLoading(true);
+            if (isFollowing) {
+                 await followerService.unfollowUser(notification.sender._id);
+                 setIsFollowing(false);
+            } else {
+                 await followerService.followUser(notification.sender._id);
+                 setIsFollowing(true);
+            }
+        } catch (error) {
+            console.error("Follow error", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div
+            className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+            onClick={() => onClick(notification._id || notification.id)}
+        >
+            <div className="relative flex items-start gap-3 pe-3">
+                <img
+                    className="size-9 rounded-full object-cover"
+                    src={notification.sender?.avatar || "https://github.com/shadcn.png"}
+                    width={32}
+                    height={32}
+                    alt={notification.sender?.username || "User"}
+                />
+                <div className="flex-1 space-y-1">
+                    <p className="text-left text-foreground/80 leading-snug">
+                        <span className="font-medium text-foreground hover:underline">
+                            {notification.sender?.name || notification.sender?.username || "Someone"}
+                        </span>{" "}
+                        {notification.type === "FOLLOW_REQUEST" ? "sent you a follow request" : 
+                         notification.type === "FOLLOW_ACCEPTED" ? "accepted your follow request" :
+                         notification.type === "LIKE" ? "liked your post" : "interacted with you"}
+                    </p>
+                    <div className="text-xs text-muted-foreground">
+                        {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : "Just now"}
+                    </div>
+                    {notification.type === "FOLLOW_REQUEST" && (
+                        <div className="pt-1">
+                             <Button 
+                                size="sm" 
+                                variant={isFollowing ? "outline" : "default"}
+                                className={cn("h-7 text-xs", isFollowing && "text-muted-foreground")}
+                                onClick={handleFollow}
+                                disabled={loading}
+                             >
+                                {loading ? "..." : isFollowing ? "Following" : "Follow Back"}
+                             </Button>
+                        </div>
+                    )}
+                </div>
+                {!notification.isRead && (
+                    <div className="absolute end-0 self-center">
+                        <Dot />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function NotificationsPopover() {
   const dispatch = useDispatch();
   const { notifications, unreadCount } = useSelector((state) => state.notifications);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchNotifications());
+    }
+  }, [dispatch, isAuthenticated]);
 
   const handleMarkAllAsRead = () => {
-    dispatch(markAllAsRead());
+    dispatch(markAllNotificationsAsRead());
   };
 
   const handleNotificationClick = (id) => {
-    dispatch(markAsRead(id));
+    dispatch(markNotificationAsRead(id));
   };
 
   return (
@@ -61,43 +141,15 @@ export function NotificationsPopover() {
           className="-mx-1 my-1 h-px bg-border"
         ></div>
         <div className="max-h-[300px] overflow-y-auto">
-        {notifications.length === 0 ? (
+         {notifications.length === 0 ? (
            <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
         ) : (
           notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent cursor-pointer"
-              onClick={() => handleNotificationClick(notification.id)}
-            >
-              <div className="relative flex items-start gap-3 pe-3">
-                <img
-                  className="size-9 rounded-full object-cover"
-                  src={notification.user.avatar}
-                  width={32}
-                  height={32}
-                  alt={notification.user.name}
-                />
-                <div className="flex-1 space-y-1">
-                  <p className="text-left text-foreground/80 leading-snug">
-                    <span className="font-medium text-foreground hover:underline">
-                      {notification.user.name}
-                    </span>{" "}
-                    {notification.action}{" "}
-                    <span className="font-medium text-foreground hover:underline">
-                      {notification.target}
-                    </span>
-                    .
-                  </p>
-                  <div className="text-xs text-muted-foreground">{notification.timestamp}</div>
-                </div>
-                {!notification.isRead && (
-                  <div className="absolute end-0 self-center">
-                    <Dot />
-                  </div>
-                )}
-              </div>
-            </div>
+             <NotificationItem 
+                key={notification._id || notification.id} 
+                notification={notification} 
+                onClick={handleNotificationClick} 
+             />
           ))
         )}
         </div>

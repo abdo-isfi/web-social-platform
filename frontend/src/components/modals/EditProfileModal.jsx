@@ -51,9 +51,14 @@ export function EditProfileModal({ isOpen, onClose }) {
   const [showBannerMenu, setShowBannerMenu] = useState(false);
 
   // Profile Photo Handlers
+  // Check if we have new files
+  const [newAvatarFile, setNewAvatarFile] = useState(null);
+  const [newBannerFile, setNewBannerFile] = useState(null);
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+        setNewAvatarFile(file);
         const reader = new FileReader();
         reader.onloadend = () => {
             setFormData(prev => ({ ...prev, avatar: reader.result }));
@@ -63,15 +68,10 @@ export function EditProfileModal({ isOpen, onClose }) {
     }
   };
 
-  const handleDeletePhoto = () => {
-    setFormData(prev => ({ ...prev, avatar: "https://github.com/shadcn.png" }));
-    setShowPhotoMenu(false);
-  };
-
-  // Banner Handlers
   const handleBannerChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+        setNewBannerFile(file);
         const reader = new FileReader();
         reader.onloadend = () => {
             setFormData(prev => ({ ...prev, banner: reader.result }));
@@ -81,13 +81,50 @@ export function EditProfileModal({ isOpen, onClose }) {
     }
   };
 
+  const handleDeletePhoto = () => {
+    setNewAvatarFile(null); // Assuming delete means revert or empty? currently implementation sets string url. 
+    // Backend doesn't support deleting yet, just replacing. 
+    // But setting avatar to default string won't persist if backend expects file or string url in body.
+    setFormData(prev => ({ ...prev, avatar: "https://github.com/shadcn.png" }));
+    setShowPhotoMenu(false);
+  };
+
   const handleDeleteBanner = () => {
+    setNewBannerFile(null);
     setFormData(prev => ({ ...prev, banner: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop" }));
     setShowBannerMenu(false);
   };
 
-  const handleSave = () => {
-    dispatch(updateUser(formData));
+  const handleSave = async () => {
+    // Determine if we need FormData (files present)
+    const isFormData = !!newAvatarFile || !!newBannerFile;
+    let dataToSubmit;
+
+    if (isFormData) {
+        dataToSubmit = new FormData();
+        // Append text fields
+        Object.keys(formData).forEach(key => {
+            if (key !== 'avatar' && key !== 'banner') {
+                dataToSubmit.append(key, formData[key]);
+            }
+        });
+        // Append files
+        if (newAvatarFile) {
+            dataToSubmit.append('avatar', newAvatarFile);
+        }
+        if (newBannerFile) {
+            dataToSubmit.append('banner', newBannerFile);
+        }
+    } else {
+        // Send JSON minus the base64 previews if they are just previews (or send them if they are text links)
+        // Actually, existing avatar/banner are URLs. We can send them.
+        dataToSubmit = { ...formData };
+        // Clean up base64 if we are not sending file? No, if we didn't change file, avatar is URL.
+        // If we changed file, we have newAvatarFile.
+    }
+
+    const { updateUserProfile } = await import('@/store/slices/authSlice');
+    await dispatch(updateUserProfile(user.id, dataToSubmit, isFormData));
     onClose();
   };
 
