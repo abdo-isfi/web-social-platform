@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - .env  # ← Import all variables from .env file
+    environment:
+      # You can also override specific variables here
+      - NODE_ENV=development
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASS:-password123}
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
