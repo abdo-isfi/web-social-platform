@@ -63,9 +63,19 @@ const authSlice = createSlice({
     updateUser: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        // Sync to localStorage as well
         localStorage.setItem('user', JSON.stringify(state.user));
       }
     },
+    setAuth: (state, action) => {
+      state.isAuthenticated = true;
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.loading = false;
+      state.error = null;
+      if (action.payload.token) localStorage.setItem('token', action.payload.token);
+      if (action.payload.user) localStorage.setItem('user', JSON.stringify(action.payload.user));
+    }
   },
 });
 
@@ -109,18 +119,7 @@ export const register = (userData) => async (dispatch) => {
 export const updateUserProfile = (userId, data, isFormData) => async (dispatch) => {
   try {
     const { userService } = await import('@/services/user.service');
-    // Note: userId is largely ignored by service now as it uses /me, but kept for consistency if needed or we can drop it.
-    // user.service updateProfile signature: (data, isFormData)
     const response = await userService.updateProfile(data, isFormData);
-    
-    // Response should be { success: true, data: { ... } } or just the data depending on service.
-    // user.service uses api.patch which returns response.data (nested data). 
-    // And user.controller returns { success: true, data: userResponse }.
-    // api.js interceptor returns response.data (the json).
-    // So response in service is json.
-    // So response.data is the user object.
-    
-    // We need to dispatch updateUser to update local state
     if (response) {
         dispatch(updateUser(response));
     }
@@ -131,10 +130,27 @@ export const updateUserProfile = (userId, data, isFormData) => async (dispatch) 
   }
 };
 
+export const fetchMe = () => async (dispatch) => {
+  try {
+    const { authService } = await import('@/services/auth.service');
+    const response = await authService.getCurrentUser();
+    if (response) {
+      dispatch(updateUser(response));
+      return response;
+    }
+  } catch (error) {
+    console.error("Fetch me failed", error);
+    if (error.response?.status === 401) {
+      dispatch(logout());
+    }
+    return null;
+  }
+};
+
 export const { 
   loginStart, loginSuccess, loginFailure, logout,
   registerStart, registerSuccess, registerFailure,
-  clearError, updateUser 
+  clearError, updateUser, setAuth 
 } = authSlice.actions;
 
 export default authSlice.reducer;

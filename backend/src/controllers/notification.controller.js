@@ -12,22 +12,38 @@ const getUnreadNotifications = async (req, res) => {
       .populate('thread', 'content')
       .lean();
 
-    // Get following list for "Follow Back" check
-    const following = await Follow.find({ follower: userId }).select('following');
-    const followingIds = new Set(following.map(f => f.following.toString()));
+    // Get follow statuses for all senders to handle "Follow Back" and "Request Status"
+    const senderIds = unreadNotifications.map(n => n.sender?._get ? n.sender._id : n.sender).filter(Boolean);
+    
+    // Statuses where I (receiver) am the follower (for Follow Back)
+    const following = await Follow.find({ follower: userId, following: { $in: senderIds } });
+    const followingSet = new Set(following.map(f => f.following.toString()));
+
+    // Statuses where I (receiver) am the following (for Accept/Reject)
+    const incomingRequests = await Follow.find({ following: userId, follower: { $in: senderIds } });
+    const incomingRequestsMap = new Map(incomingRequests.map(f => [f.follower.toString(), f.status]));
 
     const formattedNotifications = unreadNotifications.map(notification => {
-        // Compute isFollowing
-        let isFollowing = false;
-        if (notification.sender) {
-            isFollowing = followingIds.has(notification.sender._id.toString());
-            
+        const senderId = notification.sender?._id?.toString() || notification.sender?.toString();
+        
+        let isFollowingSender = false;
+        let followRequestStatus = null;
+
+        if (senderId) {
+            isFollowingSender = followingSet.has(senderId);
+            followRequestStatus = incomingRequestsMap.get(senderId);
+
             // Format avatar
-            if (notification.sender.avatar) {
+            if (notification.sender && notification.sender.avatar) {
                 notification.sender.avatar = `data:${notification.sender.avatarType};base64,${notification.sender.avatar.toString('base64')}`;
             }
         }
-        return { ...notification, isFollowing };
+        
+        return { 
+            ...notification.toObject ? notification.toObject() : notification, 
+            isFollowingSender,
+            followRequestStatus 
+        };
     });
 
     return responseHandler.success(res, formattedNotifications, "Unread notifications fetched successfully", statusCodes.SUCCESS);

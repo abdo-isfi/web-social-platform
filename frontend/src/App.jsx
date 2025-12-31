@@ -6,7 +6,7 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { BookmarksPage } from '@/pages/BookmarksPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useSelector, useDispatch } from 'react-redux';
-import { loginSuccess } from '@/store/slices/authSlice';
+import { setAuth } from '@/store/slices/authSlice';
 import socketService from '@/services/socket';
 import { addNotification } from '@/store/slices/notificationsSlice';
 
@@ -34,20 +34,29 @@ function App() {
 
   // Rehydrate auth state on app load
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+    const rehydrate = async () => {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
 
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        dispatch(loginSuccess({ user, token }));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+      if (token && userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          // Initial rehydration from cache for immediate UI
+          dispatch(setAuth({ user, token }));
+          
+          // Active verification from server (Source of Truth)
+          const { fetchMe } = await import('@/store/slices/authSlice');
+          await dispatch(fetchMe());
+        } catch (e) {
+          console.error("Failed to rehydrate auth", e);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
       }
-    }
-    setIsRehydrating(false);
+      setIsRehydrating(false);
+    };
+
+    rehydrate();
   }, [dispatch]);
 
   // Socket Connection Handling

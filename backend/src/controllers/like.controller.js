@@ -104,7 +104,7 @@ const getUserLikedThreads = async (req, res) => {
       .populate({
         path: 'thread',
         match: { isArchived: false }, // only threads not archived
-        populate: { path: 'author', select: 'username' } // populate thread author
+        populate: { path: 'author', select: 'username name avatar avatarType' } // populate thread author
       })
       .lean();
 

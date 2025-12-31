@@ -25,7 +25,8 @@ function Dot() {
 }
 
 function NotificationItem({ notification, onClick }) {
-    const [isFollowing, setIsFollowing] = React.useState(notification.isFollowing);
+    const [followsBack, setFollowsBack] = React.useState(notification.isFollowingSender);
+    const [requestStatus, setRequestStatus] = React.useState(notification.followRequestStatus);
     const [loading, setLoading] = React.useState(false);
 
     const handleAccept = async (e) => {
@@ -33,8 +34,7 @@ function NotificationItem({ notification, onClick }) {
         try {
             setLoading(true);
             await followerService.acceptFollowRequest(notification.sender._id);
-            // Optionally update UI like hiding buttons or changing status
-            setIsFollowing(true);
+            setRequestStatus("ACCEPTED");
         } catch (error) {
             console.error("Accept error", error);
         } finally {
@@ -56,16 +56,16 @@ function NotificationItem({ notification, onClick }) {
         }
     };
 
-    const handleFollow = async (e) => {
+    const handleFollowBack = async (e) => {
         e.stopPropagation();
         try {
             setLoading(true);
-            if (isFollowing) {
+            if (followsBack) {
                  await followerService.unfollowUser(notification.sender._id);
-                 setIsFollowing(false);
+                 setFollowsBack(false);
             } else {
                  await followerService.followUser(notification.sender._id);
-                 setIsFollowing(true);
+                 setFollowsBack(true);
             }
         } catch (error) {
             console.error("Follow error", error);
@@ -106,11 +106,11 @@ function NotificationItem({ notification, onClick }) {
                                 size="sm" 
                                 className="h-7 text-xs bg-primary text-primary-foreground"
                                 onClick={handleAccept}
-                                disabled={loading || isFollowing}
+                                disabled={loading || requestStatus === "ACCEPTED"}
                              >
-                                {isFollowing ? "Accepted" : "Accept"}
+                                {requestStatus === "ACCEPTED" ? "Accepted" : "Accept"}
                              </Button>
-                             {!isFollowing && (
+                             {requestStatus === "PENDING" && (
                                 <Button 
                                     size="sm" 
                                     variant="outline"
@@ -127,12 +127,12 @@ function NotificationItem({ notification, onClick }) {
                         <div className="pt-1">
                              <Button 
                                 size="sm" 
-                                variant={isFollowing ? "outline" : "default"}
-                                className={cn("h-7 text-xs", isFollowing && "text-muted-foreground")}
-                                onClick={handleFollow}
+                                variant={followsBack ? "outline" : "default"}
+                                className={cn("h-7 text-xs", followsBack && "text-muted-foreground")}
+                                onClick={handleFollowBack}
                                 disabled={loading}
                              >
-                                {loading ? "..." : isFollowing ? "Following" : "Follow Back"}
+                                {loading ? "..." : followsBack ? "Following" : "Follow Back"}
                              </Button>
                         </div>
                     )}

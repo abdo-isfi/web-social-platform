@@ -133,30 +133,50 @@ const postSlice = createSlice({
       })
       // Create post
       .addCase(createPost.fulfilled, (state, action) => {
+        // action.payload is the new formatted thread
         state.posts.unshift(action.payload);
       })
       // Like post
       .addCase(likePost.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p._id === action.meta.arg);
-        if (post) {
-          post.likeCount = (post.likeCount || 0) + 1;
-          post.isLiked = true;
-        }
+        const postId = action.meta.arg;
+        state.posts.forEach(post => {
+          // Update the post itself if it matches
+          if (post._id === postId) {
+            post.likeCount = (post.likeCount || 0) + 1;
+            post.isLiked = true;
+          }
+          // Update nested repost if it matches
+          if (post.repostOf && post.repostOf._id === postId) {
+            post.repostOf.likeCount = (post.repostOf.likeCount || 0) + 1;
+            post.repostOf.isLiked = true;
+          }
+        });
       })
       // Unlike post
       .addCase(unlikePost.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p._id === action.meta.arg);
-        if (post) {
-          post.likeCount = Math.max((post.likeCount || 0) - 1, 0);
-          post.isLiked = false;
-        }
+        const postId = action.meta.arg;
+        state.posts.forEach(post => {
+          if (post._id === postId) {
+            post.likeCount = Math.max((post.likeCount || 0) - 1, 0);
+            post.isLiked = false;
+          }
+          if (post.repostOf && post.repostOf._id === postId) {
+            post.repostOf.likeCount = Math.max((post.repostOf.likeCount || 0) - 1, 0);
+            post.repostOf.isLiked = false;
+          }
+        });
       })
       // Add comment
       .addCase(addComment.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p._id === action.payload.postId);
-        if (post) {
-          post.commentCount = (post.commentCount || 0) + 1;
-        }
+        const { postId } = action.payload;
+        state.posts.forEach(post => {
+          if (post._id === postId) {
+            post.commentCount = (post.commentCount || 0) + 1;
+          }
+          if (post.repostOf && post.repostOf._id === postId) {
+            post.repostOf.commentCount = (post.repostOf.commentCount || 0) + 1;
+          }
+        });
       })
       // Delete post
       .addCase(deletePost.fulfilled, (state, action) => {
@@ -168,10 +188,15 @@ const postSlice = createSlice({
       })
       // Bookmark post
       .addCase(bookmarkPost.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p._id === action.payload.postId);
-        if (post) {
-          post.isBookmarked = action.payload.isBookmarked;
-        }
+        const { postId, isBookmarked } = action.payload;
+        state.posts.forEach(post => {
+          if (post._id === postId) {
+            post.isBookmarked = isBookmarked;
+          }
+          if (post.repostOf && post.repostOf._id === postId) {
+            post.repostOf.isBookmarked = isBookmarked;
+          }
+        });
       })
       // Fetch bookmarked posts
       .addCase(fetchBookmarkedPosts.pending, (state) => {

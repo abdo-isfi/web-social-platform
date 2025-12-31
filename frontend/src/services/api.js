@@ -36,8 +36,8 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle 401 Unauthorized - excluding login/register to avoid loops on wrong credentials
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login') && !originalRequest.url.includes('/auth/register')) {
       originalRequest._retry = true;
       
       try {

@@ -122,8 +122,8 @@ export function Navbar() {
       </div>
       
       {/* Mobile Menu Content - Positioned absolutely below the floating navbar */}
-      <div className={`pointer-events-auto absolute top-20 w-[90%] md:w-[400px] border border-white/10 rounded-2xl shadow-xl transition-all ease-in-out duration-300 overflow-hidden bg-background/80 backdrop-blur-xl
-                       ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+      <div className={`absolute top-20 w-[90%] md:w-[400px] border border-white/10 rounded-2xl shadow-xl transition-all ease-in-out duration-300 overflow-hidden bg-background/80 backdrop-blur-xl
+                       ${isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
         <div className="p-4 space-y-4">
           
 

@@ -57,10 +57,7 @@ export default function Feed() {
 
   const handleNewPost = (data) => {
     requireAuth(() => {
-      dispatch(createPost({
-        content: data.content,
-        media: data.media,
-      }));
+      dispatch(createPost(data));
     }, 'login');
   };
 

@@ -68,7 +68,7 @@ const formatThreadResponse = async (thread, userId) => {
         
         isLiked = !!await Like.findOne({ user: userId, thread: thread._id });
         isReposted = !!await Thread.findOne({ author: userId, repostOf: thread._id });
-        isBookmarked = user?.bookmarks?.includes(thread._id);
+        isBookmarked = user?.bookmarks?.some(b => b.toString() === thread._id.toString());
         
         const authorId = thread.author._id || thread.author;
         isOwner = authorId.toString() === userId.toString();
@@ -97,7 +97,8 @@ const formatThreadResponse = async (thread, userId) => {
             canFollow: !isOwner && !isFollowingAuthor,
             canReport: !isOwner,
             canEdit: isOwner,
-            canDelete: isOwner
+            canDelete: isOwner,
+            canRepost: !isReposted
         }
     };
 };
