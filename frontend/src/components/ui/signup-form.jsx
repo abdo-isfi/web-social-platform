@@ -16,13 +16,12 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
           </p>
         </div>
 
-        {/* Input Fields */}
-        <div className='flex flex-col gap-4'>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full md:flex-1">
+        <div className='flex flex-col gap-6'>
+          <div className="flex flex-row gap-4">
+            <div className="w-full flex-1">
               <AppInput
+                id="signup-first-name"
                 label="First Name"
-                placeholder="John"
                 type="text"
                 {...(register ? register('firstName') : {})}
               />
@@ -31,10 +30,10 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
               )}
             </div>
 
-            <div className="w-full md:flex-1">
+            <div className="w-full flex-1">
               <AppInput
+                id="signup-last-name"
                 label="Last Name"
-                placeholder="Doe"
                 type="text"
                 {...(register ? register('lastName') : {})}
               />
@@ -46,8 +45,8 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
 
           <div className="w-full">
             <AppInput
-              label="Email Address"
-              placeholder="name@example.com"
+              id="signup-email"
+              label="Email"
               type="email"
               {...(register ? register('email') : {})}
             />
@@ -58,8 +57,8 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
 
           <div className="w-full">
             <PasswordInput
+              id="signup-password"
               label="Password"
-              placeholder="Create a password"
               {...(register ? register('password') : {})}
             />
             {errors?.password && (
@@ -69,8 +68,8 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
 
           <div className="w-full">
             <PasswordInput
+              id="signup-confirm-password"
               label="Confirm Password"
-              placeholder="Confirm your password"
               {...(register ? register('confirmPassword') : {})}
             />
             {errors?.confirmPassword && (

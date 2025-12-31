@@ -17,11 +17,11 @@ export const LoginForm = ({ onSubmit, register, errors, loading }) => {
         </div>
 
         {/* Input Fields */}
-        <div className='flex flex-col gap-4'>
+        <div className='flex flex-col gap-6'>
           <div className="w-full">
             <AppInput
-              label="Email Address"
-              placeholder="name@example.com"
+              id="login-email"
+              label="Email"
               type="email"
               {...(register ? register('email') : {})}
             />
@@ -32,8 +32,8 @@ export const LoginForm = ({ onSubmit, register, errors, loading }) => {
 
           <div className="w-full">
             <PasswordInput
+              id="login-password"
               label="Password"
-              placeholder="Enter your password"
               {...(register ? register('password') : {})}
             />
             {errors?.password && (
