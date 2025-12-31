@@ -245,19 +245,50 @@ const archiveThread = async (req, res) => {
 };
 const getFeed = async (req, res) => {
   try {
-    const userId = req.user?.id; // Can be undefined for public view if we allow it, but requirement says "Home feed = posts from followed users"
-    const { page, limit } = req.pagination;
-    const skip = (page - 1) * limit;
+    const userId = req.user?.id;
+    const { page, limit, mode } = req.query; // Expect mode to be 'following' or 'discover'
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    let filter = { isArchived: false, parentThread: null  }; // Feed usually shows top-level posts
+    let filter = { isArchived: false, parentThread: null  };
 
-    if (userId) {
-        // Get list of followed users
+    if (mode === 'following' && userId) {
+        // Only followed users + self
         const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
         const followingIds = following.map(f => f.following);
-        followingIds.push(userId); // Add self to feed
-
+        followingIds.push(userId);
         filter.author = { $in: followingIds };
+    } else {
+        // Discovery mode (default): Public posts OR posts from people I follow (even if private)
+        if (userId) {
+            const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
+            const followingIds = following.map(f => f.following);
+            followingIds.push(userId);
+
+            filter.$or = [
+                { author: { $in: followingIds } }, // Everyone I follow
+                { author: { $nin: followingIds } } // Everyone else... but wait, we need to check if they are private
+            ];
+            
+            // Refined discovery logic:
+            // 1. Author is in following list (ACCEPTED)
+            // 2. Author is NOT private
+            const privateUsers = await User.find({ isPrivate: true }).select('_id');
+            const privateUserIds = privateUsers.map(u => u._id);
+
+            filter = {
+                isArchived: false,
+                parentThread: null,
+                $or: [
+                    { author: { $in: followingIds } }, // I follow them (or it's me)
+                    { author: { $nin: privateUserIds } } // They are not private
+                ]
+            };
+        } else {
+            // Public view: only non-private users
+            const privateUsers = await User.find({ isPrivate: true }).select('_id');
+            const privateUserIds = privateUsers.map(u => u._id);
+            filter.author = { $nin: privateUserIds };
+        }
     }
 
     const threads = await Thread.find(filter)

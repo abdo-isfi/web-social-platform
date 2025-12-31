@@ -79,7 +79,12 @@ const updateProfile = async (req, res) => {
       username,
       email,
       password,
-      isPrivate
+      isPrivate,
+      name,
+      bio,
+      location,
+      website,
+      birthday
     } = req.body;
 
     // Check username uniqueness
@@ -114,9 +119,20 @@ const updateProfile = async (req, res) => {
     }
 
     // Update privacy
-    if (typeof isPrivate === 'boolean') {
-      user.isPrivate = isPrivate;
+    if (isPrivate !== undefined) {
+      user.isPrivate = isPrivate === true || isPrivate === 'true';
     }
+
+    if (name) {
+      user.name = name;
+      const parts = name.split(' ');
+      if (parts.length > 0) user.firstName = parts[0];
+      if (parts.length > 1) user.lastName = parts.slice(1).join(' ');
+    }
+    if (bio !== undefined) user.bio = bio;
+    if (location !== undefined) user.location = location;
+    if (website !== undefined) user.website = website;
+    if (birthday !== undefined) user.birthday = birthday;
 
     // Update banner
     if (req.files?.banner) {
@@ -145,7 +161,11 @@ const updateProfile = async (req, res) => {
         : null,
       banner: user.banner
         ? `data:${user.bannerType};base64,${user.banner.toString('base64')}`
-        : null
+        : null,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday
     };
 
     return responseHandler.success(
@@ -176,29 +196,40 @@ const getUserById = async (req, res) => {
     }
 
     let isFollowing = false;
+    let followStatus = null;
     // Check if current user follows this profile
     if (req.user) {
         const Follow = require('../models/follower.model');
         const follow = await Follow.findOne({ follower: req.user.id, following: userId });
-        isFollowing = !!follow;
+        if (follow) {
+          isFollowing = follow.status === 'ACCEPTED';
+          followStatus = follow.status;
+        }
     }
+
+    const isAuthorized = req.user && (req.user.id === userId || isFollowing);
 
     const userResponse = {
-        ...user.toObject(),
-        isFollowing
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        isPrivate: user.isPrivate,
+        isFollowing,
+        followStatus,
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        createdAt: user.createdAt,
+        avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
+        banner: user.banner ? `data:${user.bannerType};base64,${user.banner.toString('base64')}` : null,
+        bio: user.bio,
+        location: user.location,
+        website: user.website,
+        birthday: user.birthday,
     };
-    // Ensure avatar/banner are formatted strings if needed, but existing code handled that in some places. 
-    // Assuming backend standardizes this. The view showed raw buffer handling in update, simplified here.
-    // If strict buffer handling needed, we trust existing response structure or standardized response.
-    // For now, adding isFollowing to the object.
 
-    if (userResponse.avatar && userResponse.avatar.buffer) {
-        // The previous code didn't show formatting in getUserById, but it's likely handled or raw.
-        // Let's keep it safe.
-         userResponse.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
-    }
-     if (userResponse.banner && userResponse.banner.buffer) {
-        userResponse.banner = `data:${user.bannerType};base64,${user.banner.toString('base64')}`;
+    if (user.isPrivate && !isAuthorized) {
+        userResponse.isPrivateView = true;
+        // Optionally omit more data if needed for strictly private views
     }
 
     return responseHandler.success(
@@ -211,13 +242,31 @@ const getUserById = async (req, res) => {
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
-
 const getUserPosts = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId;
+    const currentUserId = req.user?.id;
+    
+    // Check privacy
+    const targetUser = await User.findById(userId);
+    if (!targetUser) return responseHandler.notFound(res, 'User');
+
+    let isFollowing = false;
+    if (currentUserId) {
+        const Follow = require('../models/follower.model');
+        const follow = await Follow.findOne({ follower: currentUserId, following: userId, status: 'ACCEPTED' });
+        isFollowing = !!follow;
+    }
+
+    const isAuthorized = currentUserId && (currentUserId === userId || isFollowing);
+
+    if (targetUser.isPrivate && !isAuthorized) {
+        return responseHandler.success(res, [], 'Profile is private', statusCodes.SUCCESS);
+    }
+
     const Thread = require('../models/thread.model');
     
-    const posts = await Thread.find({ author: userId })
+    const posts = await Thread.find({ author: userId, isArchived: false })
       .sort({ createdAt: -1 })
       .populate('author', 'username name avatar avatarType')
       .populate('parentThread', 'content author')
@@ -283,10 +332,30 @@ const getSuggestions = async (req, res) => {
   }
 };
 
+const updatePrivacy = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { isPrivate } = req.body;
+
+    if (typeof isPrivate !== 'boolean') {
+      return responseHandler.error(res, 'isPrivate must be a boolean', statusCodes.BAD_REQUEST);
+    }
+
+    const user = await User.findByIdAndUpdate(userId, { isPrivate }, { new: true });
+    if (!user) return responseHandler.notFound(res, 'User');
+
+    return responseHandler.success(res, { isPrivate: user.isPrivate }, 'Privacy updated successfully', statusCodes.SUCCESS);
+  } catch (error) {
+    console.error('Update privacy error:', error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 module.exports = {
   createUser,
   updateProfile,
   getUserById,
   getUserPosts,
-  getSuggestions
+  getSuggestions,
+  updatePrivacy
 };

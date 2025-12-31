@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon, LayoutGrid, Users } from 'lucide-react';
+import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon } from 'lucide-react';
 import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
-import { openAuthModal, setFeedMode } from '@/store/slices/uiSlice';
+import { openAuthModal } from '@/store/slices/uiSlice';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 export function Navbar() {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector(state => state.auth);
-  const { feedMode } = useSelector(state => state.ui);
   const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -19,9 +18,6 @@ export function Navbar() {
     setIsOpen(!isOpen);
   };
 
-  const handleFeedModeChange = (mode) => {
-    dispatch(setFeedMode(mode));
-  };
 
   const logoElement = (
     <div className="relative w-8 h-8 flex items-center justify-center bg-black dark:bg-white rounded-full cursor-pointer">
@@ -43,33 +39,6 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Center: Feed Toggle (Desktop) */}
-        <div className="hidden md:flex items-center bg-muted/50 p-1 rounded-full border border-border/50">
-           <button 
-             onClick={() => handleFeedModeChange('public')}
-             className={cn(
-               "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-               feedMode === 'public' 
-                 ? "bg-background text-foreground shadow-sm" 
-                 : "text-muted-foreground hover:text-foreground"
-             )}
-           >
-             <LayoutGrid className="w-4 h-4" />
-             Public
-           </button>
-           <button 
-             onClick={() => handleFeedModeChange('following')}
-             className={cn(
-               "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-               feedMode === 'following' 
-                 ? "bg-background text-foreground shadow-sm" 
-                 : "text-muted-foreground hover:text-foreground"
-             )}
-           >
-             <Users className="w-4 h-4" />
-             Following
-           </button>
-        </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 md:gap-4">
@@ -127,27 +96,6 @@ export function Navbar() {
                        ${isOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
         <div className="p-4 space-y-4">
           
-          {/* Mobile Feed Toggle */}
-          <div className="flex items-center justify-center p-1 bg-muted/50 rounded-xl mb-4">
-             <button 
-               onClick={() => { handleFeedModeChange('public'); toggleMenu(); }}
-               className={cn(
-                 "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-                 feedMode === 'public' ? "bg-background shadow-sm" : "text-muted-foreground"
-               )}
-             >
-               Public
-             </button>
-             <button 
-               onClick={() => { handleFeedModeChange('following'); toggleMenu(); }}
-               className={cn(
-                 "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all",
-                 feedMode === 'following' ? "bg-background shadow-sm" : "text-muted-foreground"
-               )}
-             >
-               Following
-             </button>
-          </div>
 
           <nav className="flex flex-col space-y-1">
             <Link to="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">

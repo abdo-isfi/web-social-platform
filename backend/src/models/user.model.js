@@ -47,6 +47,28 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: 160,
+    default: ''
+  },
+  location: {
+    type: String,
+    trim: true,
+    maxlength: 30,
+    default: ''
+  },
+  website: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+    default: ''
+  },
+  birthday: {
+    type: String,
+    default: ''
+  },
   avatar: {
     type: Buffer,
     default: null

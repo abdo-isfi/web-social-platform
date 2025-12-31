@@ -14,7 +14,8 @@ router.patch(
   updateProfile
 );
 
-router.get('/suggestions', authenticate, userController.getSuggestions); // Uses authenticate middleware to get req.user.id
+router.get('/suggestions', authenticate, userController.getSuggestions);
+router.put('/:userId/privacy', authenticate, userController.updatePrivacy);
 router.get('/:userId', getUserById);
 router.get('/:userId/posts', userController.getUserPosts);
 

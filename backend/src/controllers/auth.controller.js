@@ -59,6 +59,10 @@ const register = async (req, res) => {
       email: user.email,
       isPrivate: user.isPrivate,
       avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -99,6 +103,10 @@ const login = async (req, res) => {
       email: user.email,
       isPrivate: user.isPrivate,
       avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -181,6 +189,10 @@ const getCurrentUser = async (req, res) => {
       isPrivate: user.isPrivate,
       avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
       banner: user.banner ? `data:${user.bannerType};base64,${user.banner.toString('base64')}` : null,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

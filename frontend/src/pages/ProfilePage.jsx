@@ -9,7 +9,7 @@ import { SocialCard } from '@/components/ui/social-card';
 import { userService } from '@/services/user.service';
 import { followerService } from '@/services/follower.service';
 import { cn } from '@/lib/utils';
-import { MapPin, Link as LinkIcon, Calendar, MessageSquare } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock } from 'lucide-react';
 
 export function ProfilePage() {
   const { id } = useParams();
@@ -39,66 +39,73 @@ export function ProfilePage() {
 
   const handleFollowToggle = async () => {
     try {
-      if (isFollowing) {
-        // Backend now likely supports unfollow logic via follower service
-        // We'll trust the service wrapper. Previous context said it might be POST /unfollow or DELETE
-        // Implementation plan said "update follower controller". Service needs to match.
-        await followerService.unfollowUser(profile._id); // Assuming service has this, if not I need to add it.
+      if (isFollowing || profile.followStatus === 'PENDING') {
+        await followerService.unfollowUser(profile._id);
         setIsFollowing(false);
         setProfile(prev => ({ 
             ...prev, 
-            followersCount: Math.max(0, (prev.followersCount || 0) - 1),
-            isFollowing: false
+            followersCount: Math.max(0, (isFollowing ? prev.followersCount - 1 : prev.followersCount)),
+            isFollowing: false,
+            followStatus: null
         }));
       } else {
-        await followerService.followUser(profile._id);
-        setIsFollowing(true);
-        setProfile(prev => ({ 
-            ...prev, 
-            followersCount: (prev.followersCount || 0) + 1,
-            isFollowing: true
-        }));
+        const response = await followerService.followUser(profile._id);
+        const status = response.data?.status || (profile.isPrivate ? 'PENDING' : 'ACCEPTED');
+        
+        if (status === 'ACCEPTED') {
+            setIsFollowing(true);
+            setProfile(prev => ({ 
+                ...prev, 
+                followersCount: (prev.followersCount || 0) + 1,
+                isFollowing: true,
+                followStatus: 'ACCEPTED'
+            }));
+        } else {
+            setProfile(prev => ({ 
+                ...prev, 
+                followStatus: 'PENDING'
+            }));
+        }
       }
     } catch (error) {
       console.error("Follow toggle failed", error);
     }
   };
+  const fetchProfileData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch user profile
+      const userId = id === 'me' ? (currentUser?._id || currentUser?.id) : id;
+      if (!userId) {
+        setError('User not found');
+        setLoading(false);
+        return;
+      }
+
+      const profileData = await userService.getProfile(userId);
+      setProfile(profileData);
+
+      // Fetch user posts
+      const userPosts = await userService.getUserPosts(userId);
+      setPosts(userPosts || []);
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      setError(err.response?.data?.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, currentUser]);
 
   useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch user profile
-        const userId = id === 'me' ? (currentUser?._id || currentUser?.id) : id;
-        if (!userId) {
-          setError('User not found');
-          setLoading(false);
-          return;
-        }
-
-        const profileData = await userService.getProfile(userId);
-        setProfile(profileData);
-
-        // Fetch user posts
-        const userPosts = await userService.getUserPosts(userId);
-        setPosts(userPosts || []);
-      } catch (err) {
-        console.error('Error fetching profile:', err);
-        setError(err.response?.data?.message || 'Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (isAuthenticated || id !== 'me') {
       fetchProfileData();
     } else {
       setLoading(false);
       setError('Please log in to view your profile');
     }
-  }, [id, currentUser, isAuthenticated]);
+  }, [id, currentUser, isAuthenticated, fetchProfileData]);
 
   // Loading state
   if (loading) {
@@ -170,13 +177,13 @@ export function ProfilePage() {
                   <Button 
                     className={cn(
                       "rounded-full font-bold px-5 py-2 transition-colors",
-                      isFollowing 
+                      isFollowing || profile.followStatus === 'PENDING'
                         ? "bg-transparent border border-border text-foreground hover:border-red-500 hover:text-red-500 hover:bg-red-500/10" 
                         : "bg-primary text-primary-foreground hover:bg-primary/90"
                     )}
                     onClick={handleFollowToggle}
                   >
-                    {isFollowing ? 'Unfollow' : 'Follow'}
+                    {isFollowing ? 'Unfollow' : profile.followStatus === 'PENDING' ? 'Requested' : 'Follow'}
                   </Button>
                 )}
               </div>
@@ -240,8 +247,18 @@ export function ProfilePage() {
         </div>
 
         {/* Posts Section */}
-        <div className="space-y-6 mt-6 pb-20">
-          {posts.length === 0 ? (
+        <div className="space-y-6 mt-6 pb-20 px-4">
+          {profile.isPrivateView ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-3xl border border-dashed border-border/60 max-w-2xl mx-auto">
+               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-muted-foreground" />
+               </div>
+               <h3 className="text-xl font-bold mb-2">These posts are protected</h3>
+               <p className="text-muted-foreground text-center max-w-xs">
+                  Only approved followers can see @{profile.username}'s posts. Click Follow to send a request.
+               </p>
+            </div>
+          ) : posts.length === 0 ? (
             <EmptyState
               icon={<MessageSquare className="w-12 h-12" />}
               title="No posts yet"
@@ -264,7 +281,7 @@ export function ProfilePage() {
                 }}
                 engagement={{
                   likes: post.likeCount || 0,
-                  comments: post.comments?.length || 0,
+                  comments: post.commentCount || 0,
                   shares: post.shares || 0,
                   isLiked: post.isLiked || false,
                   isBookmarked: post.isBookmarked || false,
@@ -279,6 +296,7 @@ export function ProfilePage() {
       <EditProfileModal 
         isOpen={isEditModalOpen} 
         onClose={() => setIsEditModalOpen(false)} 
+        onSuccess={fetchProfileData}
       />
     </>
   );

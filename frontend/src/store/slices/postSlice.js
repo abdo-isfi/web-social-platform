@@ -4,8 +4,8 @@ import { postService } from '@/services/post.service';
 // Async thunks
 export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
-  async ({ page = 1, limit = 10 } = {}) => {
-    return await postService.getPosts(page, limit);
+  async ({ page = 1, limit = 10, mode = 'discover' } = {}) => {
+    return await postService.getPosts(page, limit, mode);
   }
 );
 

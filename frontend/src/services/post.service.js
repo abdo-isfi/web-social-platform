@@ -2,8 +2,8 @@ import api from './api';
 
 export const postService = {
   // Get all posts (feed) - Uses /thread which supports auth for personalized feed
-  getPosts: async (page = 1, limit = 10) => {
-    return await api.get(`/thread?page=${page}&limit=${limit}`);
+  getPosts: async (page = 1, limit = 10, mode = 'discover') => {
+    return await api.get(`/thread?page=${page}&limit=${limit}&mode=${mode}`);
   },
 
   // Get single post

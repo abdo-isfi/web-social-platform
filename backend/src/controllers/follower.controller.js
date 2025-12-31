@@ -47,15 +47,19 @@ const sendFollowRequest = async (req, res) => {
       );
     }
 
+    const status = followingUser.isPrivate ? "PENDING" : "ACCEPTED";
+
     const followRequest = await Follow.create({
       follower: followerId,
       following: followingId,
-      status: "ACCEPTED" // Auto-accept for public profiles (MVP requirement inferred)
+      status
     });
 
-    // Atomic increment counts
-    await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
-    await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
+    // Atomic increment counts only if followed successfully
+    if (status === "ACCEPTED") {
+      await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
+      await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
+    }
 
     const notification = await Notification.create({
       type: "FOLLOW_REQUEST", // Keeping type for frontend compat, effectively "NEW_FOLLOWER"
@@ -112,6 +116,10 @@ const acceptFollowRequest = async (req, res) => {
 
     followRequest.status = "ACCEPTED";
     await followRequest.save();
+
+    // Atomic increment counts
+    await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
+    await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
 
     const notification = await Notification.create({
       type: "FOLLOW_ACCEPTED",

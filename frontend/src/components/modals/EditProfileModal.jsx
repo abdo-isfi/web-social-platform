@@ -6,7 +6,7 @@ import { AppInput } from '@/components/ui/app-input';
 import { updateUser } from '@/store/slices/authSlice';
 import { Camera, Eye, Trash2, Upload } from 'lucide-react';
 
-export function EditProfileModal({ isOpen, onClose }) {
+export function EditProfileModal({ isOpen, onClose, onSuccess }) {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   
@@ -17,7 +17,8 @@ export function EditProfileModal({ isOpen, onClose }) {
     website: '',
     birthday: '',
     avatar: '',
-    banner: ''
+    banner: '',
+    isPrivate: false
   });
 
   useEffect(() => {
@@ -29,16 +30,17 @@ export function EditProfileModal({ isOpen, onClose }) {
         website: user.website || '',
         birthday: user.birthday || '',
         avatar: user.avatar || '',
-        banner: user.banner || 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop'
+        banner: user.banner || 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop',
+        isPrivate: user.isPrivate || false
       });
     }
   }, [user, isOpen]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -125,12 +127,19 @@ export function EditProfileModal({ isOpen, onClose }) {
 
     const { updateUserProfile } = await import('@/store/slices/authSlice');
     await dispatch(updateUserProfile(user.id, dataToSubmit, isFormData));
+    if (onSuccess) onSuccess();
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogDescription>
+            Update your profile information, including name, bio, and privacy settings.
+          </DialogDescription>
+        </DialogHeader>
         <div className="relative h-[200px] w-full bg-muted group/banner">
            <img 
               src={formData.banner} 
@@ -284,6 +293,20 @@ export function EditProfileModal({ isOpen, onClose }) {
                     name="birthday"
                     value={formData.birthday}
                     onChange={handleChange}
+                  />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-0.5">
+                      <label className="text-sm font-semibold">Private Profile</label>
+                      <p className="text-xs text-muted-foreground">Only your followers can see your posts.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    name="isPrivate"
+                    checked={formData.isPrivate}
+                    onChange={handleChange}
+                    className="w-5 h-5 accent-primary cursor-pointer"
                   />
               </div>
            </div>

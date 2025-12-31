@@ -121,8 +121,8 @@ export const updateUserProfile = (userId, data, isFormData) => async (dispatch) 
     // So response.data is the user object.
     
     // We need to dispatch updateUser to update local state
-    if (response.data) {
-        dispatch(updateUser(response.data));
+    if (response) {
+        dispatch(updateUser(response));
     }
     return true;
   } catch (error) {
