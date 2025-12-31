@@ -258,37 +258,9 @@ const getFeed = async (req, res) => {
         followingIds.push(userId);
         filter.author = { $in: followingIds };
     } else {
-        // Discovery mode (default): Public posts OR posts from people I follow (even if private)
-        if (userId) {
-            const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
-            const followingIds = following.map(f => f.following);
-            followingIds.push(userId);
-
-            filter.$or = [
-                { author: { $in: followingIds } }, // Everyone I follow
-                { author: { $nin: followingIds } } // Everyone else... but wait, we need to check if they are private
-            ];
-            
-            // Refined discovery logic:
-            // 1. Author is in following list (ACCEPTED)
-            // 2. Author is NOT private
-            const privateUsers = await User.find({ isPrivate: true }).select('_id');
-            const privateUserIds = privateUsers.map(u => u._id);
-
-            filter = {
-                isArchived: false,
-                parentThread: null,
-                $or: [
-                    { author: { $in: followingIds } }, // I follow them (or it's me)
-                    { author: { $nin: privateUserIds } } // They are not private
-                ]
-            };
-        } else {
-            // Public view: only non-private users
-            const privateUsers = await User.find({ isPrivate: true }).select('_id');
-            const privateUserIds = privateUsers.map(u => u._id);
-            filter.author = { $nin: privateUserIds };
-        }
+        // Discovery/Public mode: All posts from all users (not archived, not comments)
+        // We simplified this to show ALL posts as requested.
+        // No additional filter needed beyond { isArchived: false, parentThread: null }
     }
 
     const threads = await Thread.find(filter)
@@ -304,6 +276,26 @@ const getFeed = async (req, res) => {
 
     const threadsWithLikes = await Promise.all(
       threads.map(async (thread) => {
+        // Format top-level author avatar
+        if (thread.author && thread.author.avatar) {
+            thread.author.avatar = `data:${thread.author.avatarType};base64,${thread.author.avatar.toString('base64')}`;
+        }
+        
+        // Format top-level media
+        if (thread.media && thread.media.data) {
+            thread.media.url = `data:${thread.media.contentType};base64,${thread.media.data.toString('base64')}`;
+        }
+
+        // Handle repostOf formatting
+        if (thread.repostOf) {
+            if (thread.repostOf.author && thread.repostOf.author.avatar) {
+                thread.repostOf.author.avatar = `data:${thread.repostOf.author.avatarType};base64,${thread.repostOf.author.avatar.toString('base64')}`;
+            }
+            if (thread.repostOf.media && thread.repostOf.media.data) {
+                thread.repostOf.media.url = `data:${thread.repostOf.media.contentType};base64,${thread.repostOf.media.data.toString('base64')}`;
+            }
+        }
+
         const likeCount = await Like.countDocuments({ thread: thread._id });
         const repostCount = await Thread.countDocuments({ repostOf: thread._id });
         const commentCount = await Thread.countDocuments({ parentThread: thread._id });

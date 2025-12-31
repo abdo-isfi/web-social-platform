@@ -19,7 +19,8 @@ export function SocialCard({
   onBookmark,
   onMore,
   className,
-  children
+  children,
+  repostedBy // New prop: { name, username }
 }) {
   const [isLiked, setIsLiked] = useState(engagement?.isLiked ?? false);
   const [isBookmarked, setIsBookmarked] = useState(engagement?.isBookmarked ?? false);
@@ -55,16 +56,24 @@ export function SocialCard({
     >
       <div className="divide-y divide-border">
         <div className="p-6">
+          {/* Repost Header */}
+          {repostedBy && (
+            <div className="flex items-center gap-2 mb-3 px-1 text-xs font-semibold text-muted-foreground">
+              <Share2 className="w-3 h-3" />
+              <span>{repostedBy.name} reposted</span>
+            </div>
+          )}
+
           {/* Author section */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <img
                 src={author?.avatar}
                 alt={author?.name}
-                className="w-10 h-10 rounded-full ring-2 ring-background"
+                className="w-10 h-10 rounded-full ring-2 ring-background focus:outline-none focus:ring-primary/20 transition-all hover:opacity-90"
               />
               <div>
-                <h3 className="text-sm font-medium text-foreground">
+                <h3 className="text-sm font-semibold text-foreground hover:underline cursor-pointer">
                   {author?.name}
                 </h3>
                 <p className="text-xs text-muted-foreground">
@@ -75,9 +84,9 @@ export function SocialCard({
             <button
               type="button"
               onClick={onMore}
-              className="p-2 hover:bg-muted rounded-full transition-colors"
+              className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
             >
-              <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
+              <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
 
