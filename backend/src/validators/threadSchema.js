@@ -6,10 +6,10 @@ const createThreadSchema = Joi.object({
   content: Joi.string()
     .trim()
     .min(1)
-    .required()
+    .allow('') // Allow empty string when media is present
+    .optional()
     .messages({
       'string.empty': 'Content cannot be empty',
-      'any.required': 'Content is required',
     }),
 
   parentThread: Joi.string()
@@ -18,6 +18,6 @@ const createThreadSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Parent thread must be a valid MongoDB ObjectId',
     }),
-});
+}).unknown(true); // Allow unknown fields like 'media' from multer
 
 module.exports = createThreadSchema;

@@ -4,7 +4,7 @@ const threadSchema = new mongoose.Schema(
   {
     content: {
       type: String,
-      required: true,
+      required: false, // Changed from true to allow media-only posts
       trim: true,
     },
 
@@ -13,8 +13,9 @@ const threadSchema = new mongoose.Schema(
         type: String,
         enum: ["image", "video"],
       },
-        data: Buffer,   
-        url: String,    
+        data: Buffer,   // Legacy: for existing embedded images
+        url: String,    // MinIO presigned URL or legacy URL
+        key: String,    // MinIO object key (for deletion and URL refresh)
         contentType: String,
     
     },

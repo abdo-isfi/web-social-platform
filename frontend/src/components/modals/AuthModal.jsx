@@ -115,102 +115,79 @@ export function AuthModal() {
 
   return (
     <Dialog open={isAuthModalOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[600px] p-0 overflow-hidden bg-[var(--color-surface)] border-[var(--color-border)] rounded-3xl gap-0">
-         {/* Accessibility Requirements for Radix Dialog */}
+      <DialogContent className="max-w-4xl w-[95vw] h-[600px] p-0 overflow-hidden bg-background border-border rounded-3xl shadow-2xl gap-0">
+         {/* Accessibility Requirements */}
         <DialogTitle className="sr-only">Authentication</DialogTitle>
         <DialogDescription className="sr-only">
           {isLoginView ? "Login to your account" : "Create a new account"}
         </DialogDescription>
 
-        <div 
-          className="relative w-full h-full flex overflow-hidden"
-          onMouseMove={handleMouseMove}
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-        >
-          {/* Animated Background Blob */}
-          <div 
-            className={`absolute pointer-events-none w-[500px] h-[500px] bg-gradient-to-r from-purple-400/20 via-blue-400/20 to-pink-400/20 dark:from-purple-300/15 dark:via-blue-300/15 dark:to-pink-300/15 rounded-full blur-3xl transition-opacity duration-300 z-0 ${
-              isHovering ? 'opacity-100' : 'opacity-0'
-            }`}
-            style={{
-              transform: `translate(${mousePosition.x - 250}px, ${mousePosition.y - 250}px)`,
-              transition: 'transform 0.1s ease-out'
-            }}
-          />
-
-          {/* Error Toast inside Modal */}
+        <div className="relative w-full h-full flex overflow-hidden">
+          {/* Error Toast inside Modal - Centered Top */}
           <AnimatePresence>
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="absolute top-4 right-4 z-50 rounded-xl bg-red-50 dark:bg-red-900/30 p-4 shadow-xl border border-red-200 dark:border-red-800 backdrop-blur-md"
+                className="absolute top-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
               >
-                <div className="text-sm font-medium text-red-800 dark:text-red-200">{error}</div>
+                <div className="bg-destructive/10 backdrop-blur-md border border-destructive/20 text-destructive text-sm font-medium px-4 py-2 rounded-full shadow-lg">
+                  {error}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Left Panel Content (Login Form) */}
-          <motion.div
-            className="absolute top-0 left-0 w-full lg:w-1/2 h-full z-10 bg-[var(--color-surface)]"
-            initial={{ x: 0, opacity: 1 }}
-            animate={{ 
-              x: isLoginView ? 0 : "-100%",
-              opacity: isLoginView ? 1 : 0 
-            }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-          >
-            <LoginForm 
-              onSubmit={handleLoginSubmit(onLogin)} 
-              register={loginRegister} 
-              errors={loginErrors} 
-              loading={loading} 
-            />
-          </motion.div>
+          {/* Login Form Container (Always on Left) */}
+          <div className={`absolute top-0 left-0 h-full w-full lg:w-1/2 transition-all duration-700 ease-in-out z-20 ${isLoginView ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none -translate-x-[20%]'}`}>
+             <div className="h-full w-full flex items-center justify-center bg-background">
+               <LoginForm 
+                 onSubmit={handleLoginSubmit(onLogin)} 
+                 register={loginRegister} 
+                 errors={loginErrors} 
+                 loading={loading} 
+               />
+             </div>
+          </div>
 
-          {/* Right Panel Content (Register Form) */}
-          <motion.div
-            className="absolute top-0 right-0 w-full lg:w-1/2 h-full z-0 flex items-center justify-center bg-[var(--color-surface)]"
-            initial={{ opacity: 0 }}
-            animate={{ 
-              opacity: isLoginView ? 0 : 1,
-              // Move it into view when active
-              zIndex: isLoginView ? 0 : 10
-            }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-             <SignupForm 
-              onSubmit={handleSignupSubmit(onRegister)} 
-              register={signupRegister} 
-              errors={signupErrors} 
-              loading={loading}
-              onLoginClick={() => toggleView(true)}
-            />
-          </motion.div>
+          {/* Signup Form Container (Always on Right, slides to Left on mobile logic or overlay slides on desktop) 
+              Actually, for the "sliding overlay" effect:
+              - Login Form is on Left.
+              - Signup Form is on Right.
+              - Overlay slides over the one not in use.
+          */}
+          
+          <div className={`absolute top-0 left-0 lg:left-1/2 h-full w-full lg:w-1/2 transition-all duration-700 ease-in-out z-20 ${!isLoginView ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none translate-x-[20%]'}`}>
+              <div className="h-full w-full flex items-center justify-center bg-background">
+                <SignupForm 
+                  onSubmit={handleSignupSubmit(onRegister)} 
+                  register={signupRegister} 
+                  errors={signupErrors} 
+                  loading={loading}
+                  onLoginClick={() => toggleView(true)}
+                />
+              </div>
+          </div>
 
-          {/* Hero Image Overlay - Slides between sides */}
-          <motion.div
-            className="hidden lg:block absolute top-0 w-1/2 h-full z-20 overflow-hidden"
-            initial={false}
-            animate={{ 
-              left: isLoginView ? "50%" : "0%" 
-            }}
-            transition={{ type: "spring", stiffness: 200, damping: 25, duration: 0.6 }}
+          {/* Sliding Overlay Container (Desktop Only) */}
+          <div 
+             className={`hidden lg:block absolute top-0 left-0 h-full w-1/2 overflow-hidden transition-transform duration-700 ease-in-out z-30 ${isLoginView ? 'translate-x-[100%]' : 'translate-x-0'}`}
           >
-            <HeroImage 
-              isLoginView={isLoginView} 
-              onToggle={() => toggleView(!isLoginView)} 
-            />
-          </motion.div>
+             {/* Inner container to counteract the outer translation for the background image effect */}
+             <div className={`relative -left-full h-full w-[200%] transition-transform duration-700 ease-in-out ${isLoginView ? 'translate-x-[50%]' : 'translate-x-0'}`}>
+               <HeroImage 
+                 isLoginView={isLoginView} 
+                 onToggle={() => toggleView(!isLoginView)} 
+               />
+             </div>
+          </div>
           
            {/* Mobile Toggle Button (Visible only on small screens) */}
            <div className="lg:hidden absolute bottom-4 left-0 w-full text-center z-30">
              <button 
                onClick={() => toggleView(!isLoginView)}
-               className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline"
+               className="text-sm text-muted-foreground hover:text-primary underline font-medium"
              >
                {isLoginView ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
              </button>

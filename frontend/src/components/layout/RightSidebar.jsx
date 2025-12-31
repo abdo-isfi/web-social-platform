@@ -56,12 +56,12 @@ export function RightSidebar() {
         <input 
           type="text" 
           placeholder="Search..." 
-          className="w-full bg-zinc-100 dark:bg-zinc-900 border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-primary"
+          className="w-full bg-white/10 dark:bg-black/20 border-white/5 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-primary backdrop-blur-sm transition-all focus:bg-white/20 dark:focus:bg-black/30 placeholder:text-muted-foreground"
         />
       </div>
 
       {/* Suggested Users - Real Data */}
-      <div className="bg-zinc-50/50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-border/50">
+      <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10">
         <h3 className="font-bold text-lg mb-4">Who to follow</h3>
         <div className="flex flex-col gap-4">
           {loading ? (
@@ -97,7 +97,7 @@ export function RightSidebar() {
       </div>
 
       {/* Trending (Static for now as no backend support) */}
-      <div className="bg-zinc-50/50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-border/50">
+      <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10">
         <h3 className="font-bold text-lg mb-4">Trending for you</h3>
         <div className="flex flex-col gap-4">
           {trends.map(trend => (

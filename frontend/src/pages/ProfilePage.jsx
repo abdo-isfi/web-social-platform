@@ -8,10 +8,16 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SocialCard } from '@/components/ui/social-card';
 import { userService } from '@/services/user.service';
 import { followerService } from '@/services/follower.service';
+import { postService } from '@/services/post.service';
+import { useDispatch } from 'react-redux';
+import { bookmarkPost, deletePost, archivePost } from '@/store/slices/postSlice';
 import { cn } from '@/lib/utils';
 import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock } from 'lucide-react';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export function ProfilePage() {
+  const dispatch = useDispatch();
+  const { requireAuth } = useAuthGuard();
   const { id } = useParams();
   const { user: currentUser, isAuthenticated } = useSelector(state => state.auth);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -97,6 +103,55 @@ export function ProfilePage() {
       setLoading(false);
     }
   }, [id, currentUser]);
+
+  const handleLike = async (postId, currentlyLiked) => {
+    requireAuth(async () => {
+      try {
+        if (currentlyLiked) {
+          await postService.unlikePost(postId);
+        } else {
+          await postService.likePost(postId);
+        }
+        
+        // Update local state
+        setPosts(prev => prev.map(p => {
+          if ((p._id || p.id) === postId) {
+             return {
+               ...p,
+               isLiked: !currentlyLiked,
+               likeCount: currentlyLiked ? Math.max(0, p.likeCount - 1) : (p.likeCount || 0) + 1
+             };
+          }
+          return p;
+        }));
+      } catch (error) {
+        console.error("Like failed", error);
+      }
+    });
+  };
+
+  const handleAction = async (postId, action, authorId) => {
+    requireAuth(async () => {
+        if (action === 'bookmarked') {
+            const response = await postService.bookmarkPost(postId);
+            setPosts(prev => prev.map(p => 
+                (p._id || p.id) === postId ? { ...p, isBookmarked: response.isBookmarked } : p
+            ));
+        } else if (action === 'delete') {
+            await postService.archivePost(postId); 
+            setPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+            setProfile(prev => ({ ...prev, postsCount: Math.max(0, (prev.postsCount || 0) - 1) }));
+        } else if (action === 'follow') {
+            await followerService.followUser(authorId);
+            fetchProfileData();
+        } else if (action === 'unfollow') {
+            await followerService.unfollowUser(authorId);
+            fetchProfileData();
+        } else if (action === 'report') {
+            console.log(`Reported post ${postId}`);
+        }
+    });
+  };
 
   useEffect(() => {
     if (isAuthenticated || id !== 'me') {
@@ -265,30 +320,47 @@ export function ProfilePage() {
               description={isOwnProfile ? "You haven't posted anything yet." : "This user hasn't posted anything yet."}
             />
           ) : (
-            posts.map(post => (
-              <SocialCard 
-                key={post._id || post.id}
-                id={post._id || post.id}
-                author={{
-                  name: profile.name || profile.username,
-                  username: profile.username,
-                  avatar: profile.avatar || 'https://github.com/shadcn.png',
-                  timeAgo: post.createdAt ? getTimeAgo(post.createdAt) : 'Just now',
-                }}
-                content={{
-                  text: post.content || post.text || '',
-                  media: post.media || [],
-                }}
-                engagement={{
-                  likes: post.likeCount || 0,
-                  comments: post.commentCount || 0,
-                  shares: post.shares || 0,
-                  isLiked: post.isLiked || false,
-                  isBookmarked: post.isBookmarked || false,
-                }}
-                className="max-w-2xl mx-auto"
-              />
-            ))
+            posts.map(post => {
+              const isRepost = !!post.repostOf;
+              const displayPost = isRepost ? post.repostOf : post;
+              const repostedBy = isRepost ? post.author : null;
+
+              return (
+                <SocialCard 
+                  key={post._id || post.id}
+                  id={isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id)}
+                  author={{
+                    name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
+                    username: displayPost.author?.username || 'unknown',
+                    avatar: displayPost.author?.avatar || 'https://github.com/shadcn.png',
+                    timeAgo: displayPost.createdAt ? getTimeAgo(displayPost.createdAt) : 'Just now',
+                  }}
+                  content={{
+                    text: displayPost.content || displayPost.text || '',
+                    media: displayPost.media ? (Array.isArray(displayPost.media) ? displayPost.media : [displayPost.media]) : [],
+                  }}
+                  engagement={{
+                    likes: displayPost.likeCount || 0,
+                    comments: displayPost.commentCount || 0,
+                    shares: displayPost.repostCount || 0,
+                    isLiked: displayPost.isLiked || false,
+                    isBookmarked: displayPost.isBookmarked || false,
+                  }}
+                  repostedBy={repostedBy}
+                  permissions={isOwnProfile ? post.permissions : displayPost.permissions}
+                  onLike={() => handleLike(displayPost._id || displayPost.id, displayPost.isLiked)}
+                  onComment={() => handleAction(displayPost._id || displayPost.id, 'commented')}
+                  onShare={() => handleAction(displayPost._id || displayPost.id, 'shared')}
+                  onBookmark={() => handleAction(displayPost._id || displayPost.id, 'bookmarked')}
+                  onMore={(action) => handleAction(
+                    isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id), 
+                    action, 
+                    isOwnProfile ? (post.author?._id || post.author) : (displayPost.author?._id || displayPost.author)
+                  )}
+                  className="max-w-2xl mx-auto"
+                />
+              );
+            })
           )}
         </div>
       </div>

@@ -8,6 +8,7 @@ export function PostComments({ postId, newComment }) {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState(null);
@@ -25,18 +26,19 @@ export function PostComments({ postId, newComment }) {
         if (prev.find(c => c._id === newComment._id)) return prev;
         return [...prev, newComment];
       });
+      setIsExpanded(true); // Automatically expand when a new comment is added
     }
   }, [newComment, postId]);
 
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const response = await postService.getComments(postId, { limit: 3 });
-      const { comments: data, pagination } = response; // Adjust based on API response structure
+      const response = await postService.getComments(postId, { limit: 10 }); // Fetch more initially but show few
+      const { comments: data, pagination } = response;
       
       setComments(data);
       setNextCursor(pagination.nextCursor);
-      setHasMore(pagination.hasMore || (pagination.totalComments > data.length)); // Fallback logic
+      setHasMore(pagination.hasMore);
       setError(null);
     } catch (err) {
       console.error("Failed to load comments", err);
@@ -47,21 +49,22 @@ export function PostComments({ postId, newComment }) {
   };
 
   const handeLoadMore = async () => {
-    if (!nextCursor) return;
+    if (!nextCursor) {
+        setIsExpanded(true);
+        return;
+    }
     try {
       setLoadingMore(true);
       const response = await postService.getComments(postId, { 
-        limit: 5, 
+        limit: 10, 
         cursor: nextCursor 
       });
       const { comments: newData, pagination } = response;
 
       setComments(prev => [...prev, ...newData]);
       setNextCursor(pagination.nextCursor);
-      // Update hasMore. If we received fewer than limit, or backend says so.
-      // Backend pagination object now has 'hasMore' from my previous edit?
-      // Yes, I added 'hasMore' to backend response.
       setHasMore(pagination.hasMore);
+      setIsExpanded(true);
       
     } catch (err) {
       console.error("Failed to load more comments", err);
@@ -75,11 +78,10 @@ export function PostComments({ postId, newComment }) {
   }
 
   if (comments.length === 0 && !error) {
-     return null; // Or show "No comments yet" if desired, but user said "No comments -> show 'No replies yet'?" 
-     // Prompt: "No comments -> show 'No replies yet'"
-     // But usually we hide the section if empty to save space, or show a placeholder.
-     // Let's return a small text.
+      return null;
   }
+
+  const displayedComments = isExpanded ? comments : comments.slice(0, 3);
 
   return (
     <div className="border-t border-border p-4 space-y-4">
@@ -87,12 +89,12 @@ export function PostComments({ postId, newComment }) {
             <p className="text-sm text-muted-foreground text-center">No replies yet</p>
         ) : (
             <div className="space-y-4">
-                {comments.map(comment => (
+                {displayedComments.map(comment => (
                 <div key={comment._id} className="flex gap-3">
                     <img 
                         src={comment.author?.avatar || "https://github.com/shadcn.png"} 
                         alt={comment.author?.username} 
-                        className="w-8 h-8 rounded-full"
+                        className="w-8 h-8 rounded-full flex-shrink-0"
                     />
                     <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
@@ -108,15 +110,26 @@ export function PostComments({ postId, newComment }) {
             </div>
         )}
 
-      {hasMore && (
-        <button 
-          onClick={handeLoadMore} 
-          disabled={loadingMore}
-          className="text-sm text-blue-500 hover:text-blue-600 font-medium disabled:opacity-50"
-        >
-          {loadingMore ? 'Loading...' : 'See more comments'}
-        </button>
-      )}
+      <div className="flex items-center gap-4">
+        {(hasMore || (comments.length > 3 && !isExpanded)) && (
+            <button 
+                onClick={handeLoadMore} 
+                disabled={loadingMore}
+                className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
+            >
+                {loadingMore ? 'Loading...' : 'See more comments'}
+            </button>
+        )}
+        
+        {isExpanded && comments.length > 3 && (
+            <button 
+                onClick={() => setIsExpanded(false)} 
+                className="text-sm text-muted-foreground hover:underline font-medium"
+            >
+                See less
+            </button>
+        )}
+      </div>
     </div>
   );
 }

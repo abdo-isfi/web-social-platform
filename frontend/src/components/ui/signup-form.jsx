@@ -11,7 +11,7 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
           <h1 className='text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 dark:from-purple-400 dark:via-blue-400 dark:to-purple-400 bg-clip-text text-transparent mb-2'>
             Sign up
           </h1>
-          <p className='text-[var(--color-text-secondary)] text-sm'>
+          <p className='text-muted-foreground text-sm'>
             Create your account to get started.
           </p>
         </div>
@@ -19,57 +19,62 @@ export function SignupForm({ onSubmit, register, errors, loading }) {
         {/* Input Fields */}
         <div className='flex flex-col gap-4'>
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="w-full">
+            <div className="w-full md:flex-1">
               <AppInput
-                placeholder="First name"
+                label="First Name"
+                placeholder="John"
                 type="text"
                 {...(register ? register('firstName') : {})}
               />
               {errors?.firstName && (
-                <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.firstName.message}</p>
+                <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.firstName.message}</p>
               )}
             </div>
 
-            <div className="w-full">
+            <div className="w-full md:flex-1">
               <AppInput
-                placeholder="Last name"
+                label="Last Name"
+                placeholder="Doe"
                 type="text"
                 {...(register ? register('lastName') : {})}
               />
               {errors?.lastName && (
-                <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.lastName.message}</p>
+                <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.lastName.message}</p>
               )}
             </div>
           </div>
 
           <div className="w-full">
             <AppInput
-              placeholder="Email"
+              label="Email Address"
+              placeholder="name@example.com"
               type="email"
               {...(register ? register('email') : {})}
             />
             {errors?.email && (
-              <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.email.message}</p>
+              <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.email.message}</p>
             )}
           </div>
 
           <div className="w-full">
             <PasswordInput
-              placeholder="Password"
+              label="Password"
+              placeholder="Create a password"
               {...(register ? register('password') : {})}
             />
             {errors?.password && (
-              <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.password.message}</p>
+              <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.password.message}</p>
             )}
           </div>
 
           <div className="w-full">
             <PasswordInput
-              placeholder="Confirm Password"
+              label="Confirm Password"
+              placeholder="Confirm your password"
               {...(register ? register('confirmPassword') : {})}
             />
             {errors?.confirmPassword && (
-              <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.confirmPassword.message}</p>
+              <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.confirmPassword.message}</p>
             )}
           </div>
         </div>

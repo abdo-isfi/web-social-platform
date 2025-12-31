@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['FOLLOW_REQUEST', 'FOLLOW_ACCEPTED', 'LIKE', 'COMMENT', 'NEW_THREAD'],
+    enum: ['FOLLOW_REQUEST', 'FOLLOW_ACCEPTED', 'NEW_FOLLOWER', 'LIKE', 'COMMENT', 'NEW_THREAD'],
     required: true
   },
   receiver: {

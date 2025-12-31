@@ -7,16 +7,24 @@ const { emitToUser } = require('../socket'); // Added socket
 const responseHandler = require("../utils/responseHandler");
 const { statusCodes } = require("../utils/statusCodes");
 
+const { formatThreadResponse } = require("../utils/threadFormatter");
+
 const createThread = async (req, res) => {
   try {
     const { content, parentThread } = req.body;
-    if (!content || content.trim() === "") {
+    
+    // Check if either content or media is present
+    const hasMedia = !!req.file;
+    const hasContent = content && content.trim() !== "";
+
+    if (!hasContent && !hasMedia) {
       return responseHandler.error(
         res,
-        "Thread content is required",
+        "Thread must contain either text or media",
         statusCodes.BAD_REQUEST
       );
     }
+
     if (parentThread) {
       const parent = await Thread.findById(parentThread);
       if (!parent) {
@@ -24,8 +32,9 @@ const createThread = async (req, res) => {
       }
     }
 
-    const hashtags = content.match(/#[a-z0-9_]+/gi) || []; // Extract hashtags
-    const mentions = content.match(/@[a-z0-9_]+/gi) || []; // Extract mentions raw strings (need to look up users)
+    const safeContent = content ? content : "";
+    const hashtags = safeContent.match(/#[a-z0-9_]+/gi) || []; // Extract hashtags
+    const mentions = safeContent.match(/@[a-z0-9_]+/gi) || []; // Extract mentions raw strings (need to look up users)
 
     // Lookup mentioned users
     const mentionedUserIds = [];
@@ -36,38 +45,69 @@ const createThread = async (req, res) => {
     }
 
     const threadData = {
-      content: content.trim(),
+      content: safeContent.trim(),
       author: req.user.id, 
       parentThread: parentThread || null,
       hashtags: hashtags.map(h => h.toLowerCase().substring(1)), // store without #
       mentions: mentionedUserIds
     };
 
-    
-   
+    // Handle media upload to MinIO
     if (req.file) {
-    if (req.file.mimetype.startsWith("image")) {
-    threadData.media = {
-      type: "image",
-      data: req.file.buffer,
-      contentType: req.file.mimetype,
-    };
-    } else if (req.file.mimetype.startsWith("video")) {
-    // handle video externally
-   }
-  } else {
-  threadData.media = null;
-  }
+      try {
+        const { uploadToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
+        
+        // Determine media type
+        const mediaType = req.file.mimetype.startsWith("video/") ? "video" : "image";
+        
+        // Generate unique filename to avoid collisions
+        const uniqueFileName = generateUniqueFileName(req.file.originalname);
+        
+        console.log(`Uploading ${mediaType} to MinIO: ${uniqueFileName}`);
+        
+        // Upload to MinIO (this also deletes the temporary file)
+        const { key, url } = await uploadToMinIO(
+          req.file.path,
+          uniqueFileName,
+          req.file.mimetype
+        );
+        
+        // Store only metadata and URL in MongoDB (not binary data)
+        threadData.media = {
+          type: mediaType,
+          url: url,
+          key: key,
+          contentType: req.file.mimetype,
+        };
+        
+        console.log(`✓ Media uploaded successfully: ${key}`);
+      } catch (uploadError) {
+        console.error("MinIO upload error:", uploadError);
+        
+        // Clean up temporary file if it still exists
+        const fs = require('fs').promises;
+        try {
+          await fs.unlink(req.file.path);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+        
+        return responseHandler.error(
+          res,
+          "Failed to upload media file",
+          statusCodes.INTERNAL_SERVER_ERROR
+        );
+      }
+    }
 
-
-
-    
     const thread = await Thread.create(threadData);
 
     // Populate author details for the response
     const populatedThread = await Thread.findById(thread._id)
       .populate('author', 'username name avatar avatarType')
       .lean();
+
+    const formattedThread = await formatThreadResponse(populatedThread, req.user.id);
 
     // Verify notifications for mentions
     if (mentionedUserIds.length > 0) {
@@ -87,7 +127,7 @@ const createThread = async (req, res) => {
 
     return responseHandler.success(
       res,
-      populatedThread,
+      formattedThread,
       "Thread created successfully",
       statusCodes.CREATED
     );
@@ -107,27 +147,23 @@ const getUserThreads = async (req, res) => {
     const { page, limit } = req.pagination; // from middleware
     const skip = (page - 1) * limit;
 
-    const totalThreads = await Thread.countDocuments({ author: userId,isArchived: false });
-        if (totalThreads === 0) {
-      return responseHandler.success(
-        res,
-        { threads: [], pagination: null },
-        "You haven't created any threads yet. Start by creating your first thread!",
-        statusCodes.SUCCESS
-      );
-    }
-
-    const threads = await Thread.find({ author: userId })
+    const totalThreads = await Thread.countDocuments({ author: userId, isArchived: false });
+    
+    const threads = await Thread.find({ author: userId, isArchived: false })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate('author', 'username name avatar avatarType')
       .lean();
 
+    const formattedThreads = await Promise.all(
+        threads.map(thread => formatThreadResponse(thread, userId))
+    );
+
     const totalPages = Math.ceil(totalThreads / limit);
 
     return responseHandler.success(res, {
-      threads,
+      threads: formattedThreads,
       pagination: {
         totalThreads,
         totalPages,
@@ -179,22 +215,75 @@ const updateThread = async (req, res) => {
     if (req.body.content !== undefined) {
       thread.content = req.body.content.trim();
     }
+    
+    // Handle media update
     if (req.file) {
-      if (req.file.mimetype.startsWith("image")) {
+      try {
+        const { uploadToMinIO, generateUniqueFileName, deleteFromMinIO } = require('../utils/minioHelper');
+        
+        // Delete old media from MinIO if it exists
+        if (thread.media && thread.media.key) {
+          try {
+            await deleteFromMinIO(thread.media.key);
+            console.log(`✓ Old media deleted from MinIO: ${thread.media.key}`);
+          } catch (deleteError) {
+            console.warn(`⚠ Failed to delete old media: ${deleteError.message}`);
+            // Continue with upload even if deletion fails
+          }
+        }
+        
+        // Determine media type
+        const mediaType = req.file.mimetype.startsWith("video/") ? "video" : "image";
+        
+        // Generate unique filename
+        const uniqueFileName = generateUniqueFileName(req.file.originalname);
+        
+        console.log(`Uploading ${mediaType} to MinIO: ${uniqueFileName}`);
+        
+        // Upload to MinIO
+        const { key, url } = await uploadToMinIO(
+          req.file.path,
+          uniqueFileName,
+          req.file.mimetype
+        );
+        
+        // Update media with MinIO data
         thread.media = {
-          type: "image",
-          data: req.file.buffer,
-          contentType: req.file.mimetype
+          type: mediaType,
+          url: url,
+          key: key,
+          contentType: req.file.mimetype,
         };
-      } else if (req.file.mimetype.startsWith("video")) {
-        // You can handle video externally (URL)
-        thread.media = {
-          type: "video",
-          url: req.body.mediaUrl || null, // client must send video URL
-        };
+        
+        console.log(`✓ Media updated successfully: ${key}`);
+      } catch (uploadError) {
+        console.error("MinIO upload error:", uploadError);
+        
+        // Clean up temporary file if it still exists
+        const fs = require('fs').promises;
+        try {
+          await fs.unlink(req.file.path);
+        } catch (unlinkError) {
+          // Ignore cleanup errors
+        }
+        
+        return responseHandler.error(
+          res,
+          "Failed to upload media file",
+          statusCodes.INTERNAL_SERVER_ERROR
+        );
       }
     } else if (req.body.media === null) {
       // Allow removing media
+      if (thread.media && thread.media.key) {
+        try {
+          const { deleteFromMinIO } = require('../utils/minioHelper');
+          await deleteFromMinIO(thread.media.key);
+          console.log(`✓ Media deleted from MinIO: ${thread.media.key}`);
+        } catch (deleteError) {
+          console.warn(`⚠ Failed to delete media: ${deleteError.message}`);
+        }
+      }
       thread.media = null;
     }
 
@@ -252,17 +341,31 @@ const getFeed = async (req, res) => {
     let filter = { isArchived: false, parentThread: null  };
 
     if (mode === 'following' && userId) {
-        // Only followed users + self
+        // Just the posts of followed users
         const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
         const followingIds = following.map(f => f.following);
-        followingIds.push(userId);
         filter.author = { $in: followingIds };
     } else {
         // Discovery/Public mode: All posts from all users (not archived, not comments)
-        // We simplified this to show ALL posts as requested.
-        // No additional filter needed beyond { isArchived: false, parentThread: null }
+        // EXCLUDING private users if not followed by current user
+        if (userId) {
+            const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
+            const followingIds = following.map(f => f.following);
+            followingIds.push(userId);
+
+            const privateUsers = await User.find({ isPrivate: true, _id: { $nin: followingIds } }).select('_id');
+            const privateUserIds = privateUsers.map(u => u._id);
+            
+            filter.author = { $nin: privateUserIds };
+        } else {
+            // Unauthenticated: only show public accounts
+            const privateUsers = await User.find({ isPrivate: true }).select('_id');
+            const privateUserIds = privateUsers.map(u => u._id);
+            filter.author = { $nin: privateUserIds };
+        }
     }
 
+    console.log("Feed Filter:", JSON.stringify(filter, null, 2));
     const threads = await Thread.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -273,42 +376,11 @@ const getFeed = async (req, res) => {
         populate: { path: 'author', select: 'username name avatar avatarType' }
       })
       .lean();
+    
+    console.log(`Found ${threads.length} threads for feed`);
 
-    const threadsWithLikes = await Promise.all(
-      threads.map(async (thread) => {
-        // Format top-level author avatar
-        if (thread.author && thread.author.avatar) {
-            thread.author.avatar = `data:${thread.author.avatarType};base64,${thread.author.avatar.toString('base64')}`;
-        }
-        
-        // Format top-level media
-        if (thread.media && thread.media.data) {
-            thread.media.url = `data:${thread.media.contentType};base64,${thread.media.data.toString('base64')}`;
-        }
-
-        // Handle repostOf formatting
-        if (thread.repostOf) {
-            if (thread.repostOf.author && thread.repostOf.author.avatar) {
-                thread.repostOf.author.avatar = `data:${thread.repostOf.author.avatarType};base64,${thread.repostOf.author.avatar.toString('base64')}`;
-            }
-            if (thread.repostOf.media && thread.repostOf.media.data) {
-                thread.repostOf.media.url = `data:${thread.repostOf.media.contentType};base64,${thread.repostOf.media.data.toString('base64')}`;
-            }
-        }
-
-        const likeCount = await Like.countDocuments({ thread: thread._id });
-        const repostCount = await Thread.countDocuments({ repostOf: thread._id });
-        const commentCount = await Thread.countDocuments({ parentThread: thread._id });
-        
-        let isLiked = false;
-        let isReposted = false;
-        if(userId) {
-             isLiked = !!await Like.findOne({ user: userId, thread: thread._id });
-             isReposted = !!await Thread.findOne({ author: userId, repostOf: thread._id });
-        }
-
-        return { ...thread, likeCount, repostCount, commentCount, isLiked, isReposted };
-      })
+    const formattedThreads = await Promise.all(
+      threads.map(thread => formatThreadResponse(thread, userId))
     );
 
     const totalThreads = await Thread.countDocuments(filter);
@@ -317,7 +389,7 @@ const getFeed = async (req, res) => {
     return responseHandler.success(
       res,
       {
-        threads: threadsWithLikes,
+        threads: formattedThreads,
         pagination: {
           totalThreads,
           totalPages,
@@ -365,7 +437,17 @@ const repostThread = async (req, res) => {
              emitToUser(originalThread.author, 'notification:new', notif);
         }
 
-        return responseHandler.success(res, repost, "Reposted successfully", statusCodes.CREATED);
+        const populatedRepost = await Thread.findById(repost._id)
+          .populate('author', 'username name avatar avatarType')
+          .populate({
+            path: 'repostOf',
+            populate: { path: 'author', select: 'username name avatar avatarType' }
+          })
+          .lean();
+
+        const formattedRepost = await formatThreadResponse(populatedRepost, userId);
+
+        return responseHandler.success(res, formattedRepost, "Reposted successfully", statusCodes.CREATED);
     } catch (error) {
         console.error("Repost error:", error);
         return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
@@ -441,18 +523,19 @@ const getBookmarkedThreads = async (req, res) => {
 
     const threads = await Thread.find({ _id: { $in: pagedBookmarkIds } })
       .populate('author', 'username name avatar avatarType')
+      .populate({
+        path: 'repostOf',
+        populate: { path: 'author', select: 'username name avatar avatarType' }
+      })
       .lean();
 
     // Preserve order of pagedBookmarkIds
     const orderedThreads = pagedBookmarkIds.map(id => threads.find(t => t._id.toString() === id.toString())).filter(Boolean);
 
     // Add like/bookmark status
-    const threadsWithStatus = await Promise.all(orderedThreads.map(async (thread) => {
-        const likeCount = await Like.countDocuments({ thread: thread._id });
-        const commentCount = await Thread.countDocuments({ parentThread: thread._id, isArchived: false });
-        const isLiked = !!await Like.findOne({ user: userId, thread: thread._id });
-        return { ...thread, likeCount, commentCount, isLiked, isBookmarked: true };
-    }));
+    const threadsWithStatus = await Promise.all(
+        orderedThreads.map(thread => formatThreadResponse(thread, userId))
+    );
 
     return responseHandler.success(res, {
         threads: threadsWithStatus,

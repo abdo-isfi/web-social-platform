@@ -46,6 +46,14 @@ export const deletePost = createAsyncThunk(
   }
 );
 
+export const archivePost = createAsyncThunk(
+  'posts/archivePost',
+  async (postId) => {
+    await postService.archivePost(postId);
+    return postId;
+  }
+);
+
 export const bookmarkPost = createAsyncThunk(
   'posts/bookmarkPost',
   async (postId) => {
@@ -152,7 +160,11 @@ const postSlice = createSlice({
       })
       // Delete post
       .addCase(deletePost.fulfilled, (state, action) => {
-        state.posts = state.posts.filter(p => p._id !== action.payload);
+        state.posts = state.posts.filter(p => (p._id || p.id) !== action.payload);
+      })
+      // Archive post
+      .addCase(archivePost.fulfilled, (state, action) => {
+        state.posts = state.posts.filter(p => (p._id || p.id) !== action.payload);
       })
       // Bookmark post
       .addCase(bookmarkPost.fulfilled, (state, action) => {

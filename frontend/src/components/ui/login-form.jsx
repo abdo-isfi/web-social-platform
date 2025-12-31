@@ -11,7 +11,7 @@ export const LoginForm = ({ onSubmit, register, errors, loading }) => {
           <h1 className='text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 dark:from-purple-400 dark:via-blue-400 dark:to-purple-400 bg-clip-text text-transparent mb-2'>
             Sign in
           </h1>
-          <p className='text-[var(--color-text-secondary)] text-sm'>
+          <p className='text-muted-foreground text-sm'>
             Welcome back! Please enter your details.
           </p>
         </div>
@@ -20,22 +20,24 @@ export const LoginForm = ({ onSubmit, register, errors, loading }) => {
         <div className='flex flex-col gap-4'>
           <div className="w-full">
             <AppInput
-              placeholder="Email"
+              label="Email Address"
+              placeholder="name@example.com"
               type="email"
               {...(register ? register('email') : {})}
             />
             {errors?.email && (
-              <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.email.message}</p>
+              <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.email.message}</p>
             )}
           </div>
 
           <div className="w-full">
             <PasswordInput
-              placeholder="Password"
+              label="Password"
+              placeholder="Enter your password"
               {...(register ? register('password') : {})}
             />
             {errors?.password && (
-              <p className="text-red-500 text-xs text-left mt-1.5 ml-1">{errors.password.message}</p>
+              <p className="text-destructive text-xs text-left mt-1.5 ml-1 font-medium">{errors.password.message}</p>
             )}
           </div>
         </div>
@@ -43,7 +45,7 @@ export const LoginForm = ({ onSubmit, register, errors, loading }) => {
         {/* Forgot Password Link */}
         <a
           href="#"
-          className='text-sm text-[var(--color-text-secondary)] hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200 text-right'
+          className='text-sm text-muted-foreground hover:text-primary transition-colors duration-200 text-right'
         >
           Forgot your password?
         </a>

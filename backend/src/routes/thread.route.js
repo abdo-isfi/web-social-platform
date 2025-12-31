@@ -7,19 +7,19 @@ const commentController = require("../controllers/comment.controller");
 const authMiddleware = require("../middlewares/auth");
 const optionalAuth = require("../middlewares/optionalAuth");
 const pagination=require("../middlewares/pagination");
-const upload = require("../middlewares/avatarUpload"); 
+const mediaUpload = require("../middlewares/mediaUpload"); // Updated for large media files
 
 router.post(
   "/",
   authMiddleware,         
-  upload.single("media"), 
+  mediaUpload.single("media"), // Updated to handle large files (images and videos)
   validate(threadSchema),
   createThread.createThread
 );
 router.get('/me', authMiddleware, pagination, createThread.getUserThreads);
 router.get('/bookmarks', authMiddleware, pagination, createThread.getBookmarkedThreads);
 router.get('/me/:threadId', authMiddleware, createThread.getThreadById);
-router.patch('/me/:threadId', authMiddleware,upload.single('file'), createThread.updateThread);
+router.patch('/me/:threadId', authMiddleware, mediaUpload.single('media'), createThread.updateThread);
 router.patch('/archive/:threadId', authMiddleware, createThread.archiveThread);
 
 // Repost

@@ -13,16 +13,12 @@ export const postService = {
 
   // Create post
   createPost: async (postData) => {
-    return await api.post('/thread', postData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return await api.post('/thread', postData);
   },
 
   // Update post
   updatePost: async (postId, postData) => {
-    return await api.patch(`/thread/me/${postId}`, postData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return await api.patch(`/thread/me/${postId}`, postData);
   },
 
   // Archive post (delete)

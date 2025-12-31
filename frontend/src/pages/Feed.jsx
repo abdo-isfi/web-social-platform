@@ -5,7 +5,8 @@ import { CreatePost } from '@/components/feed/CreatePost';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost } from '@/store/slices/postSlice';
+import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost } from '@/store/slices/postSlice';
+import { followerService } from '@/services/follower.service';
 import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { setFeedMode } from '@/store/slices/uiSlice';
@@ -77,12 +78,25 @@ export default function Feed() {
     }, 'login');
   };
 
-  const handleAction = (id, action) => {
-    requireAuth(() => {
+  const handleAction = async (id, action, authorId) => {
+    requireAuth(async () => {
       if (action === 'commented') {
          setReplyingTo(id);
       } else if (action === 'bookmarked') {
          dispatch(bookmarkPost(id));
+      } else if (action === 'delete') {
+         dispatch(deletePost(id));
+      } else if (action === 'archive') {
+         dispatch(archivePost(id));
+      } else if (action === 'follow') {
+         await followerService.followUser(authorId);
+         dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
+      } else if (action === 'unfollow') {
+         await followerService.unfollowUser(authorId);
+         dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
+      } else if (action === 'report') {
+         // Placeholder for reporting logic
+         console.log(`Reported post ${id}`);
       }
       console.log(`Post ${id}: ${action}`);
     }, 'login');
@@ -109,39 +123,11 @@ export default function Feed() {
   };
 
   const filteredPosts = posts;
+  console.log("Feed posts:", filteredPosts);
 
   return (
     <div className="space-y-0 -mt-6">
       {/* Feed Filter Mini Navbar */}
-      <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 flex items-center justify-center py-3 px-4 shadow-sm">
-        <div className="flex items-center bg-muted/50 p-1 rounded-full border border-border/50 w-full max-w-[320px]">
-           <button 
-             onClick={() => handleFeedModeChange('public')}
-             className={cn(
-               "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-full text-sm font-semibold transition-all",
-               feedMode === 'public' 
-                 ? "bg-background text-foreground shadow-sm ring-1 ring-border/50" 
-                 : "text-muted-foreground hover:text-foreground"
-             )}
-           >
-             <LayoutGrid className="w-4 h-4" />
-             Public
-           </button>
-           <button 
-             onClick={() => handleFeedModeChange('following')}
-             className={cn(
-               "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-full text-sm font-semibold transition-all",
-               feedMode === 'following' 
-                 ? "bg-background text-foreground shadow-sm ring-1 ring-border/50" 
-                 : "text-muted-foreground hover:text-foreground"
-             )}
-           >
-             <Users className="w-4 h-4" />
-             Following
-           </button>
-        </div>
-      </div>
-
       <div className="px-4 py-6 space-y-6">
         <CreatePost onPost={handleNewPost} />
 
@@ -202,11 +188,12 @@ export default function Feed() {
                     isLiked: displayPost.isLiked || false,
                     isBookmarked: displayPost.isBookmarked || false,
                   }}
+                  permissions={displayPost.permissions}
                   onLike={() => handleLike(displayPost._id || displayPost.id, displayPost.isLiked)}
                   onComment={() => handleAction(displayPost._id || displayPost.id, 'commented')}
                   onShare={() => handleAction(displayPost._id || displayPost.id, 'shared')}
                   onBookmark={() => handleAction(displayPost._id || displayPost.id, 'bookmarked')}
-                  onMore={() => handleAction(displayPost._id || displayPost.id, 'more')}
+                  onMore={(action) => handleAction(displayPost._id || displayPost.id, action, displayPost.author?._id)}
                 >
                      <PostComments 
                         postId={displayPost._id || displayPost.id} 

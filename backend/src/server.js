@@ -3,10 +3,15 @@ const envVar = require("./config/EnvVariable");
 const connectDB = require("./config/Db");
 const http = require("http");
 const { initSocket } = require("./socket");
+const initMinIO = require("./utils/initMinIO");
 
 async function run() {
   try {
+    // Connect to MongoDB
     await connectDB();
+
+    // Initialize MinIO bucket
+    await initMinIO();
 
     const server = http.createServer(app);
 

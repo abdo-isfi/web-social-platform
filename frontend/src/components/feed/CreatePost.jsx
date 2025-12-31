@@ -33,10 +33,16 @@ export function CreatePost({ onPost }) {
   const handleSubmit = () => {
     if ((!content.trim() && media.length === 0)) return;
 
-    onPost({
-      content,
-      media: media.map(m => ({ type: m.type, url: m.preview })) // In real app, this would be upload URL
-    });
+    // Create FormData to send file properly
+    const formData = new FormData();
+    formData.append('content', content);
+    
+    // Add the actual file (only first media item for now, backend expects single file)
+    if (media.length > 0) {
+      formData.append('media', media[0].file);
+    }
+
+    onPost(formData);
 
     setContent('');
     setMedia([]);
@@ -45,7 +51,7 @@ export function CreatePost({ onPost }) {
   const isDisabled = !content.trim() && media.length === 0;
 
   return (
-    <div className="bg-card border border-border rounded-3xl p-4 shadow-sm mb-6">
+    <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 rounded-3xl p-4 shadow-sm mb-6 transition-all hover:border-white/20">
       <div className="flex gap-4">
         <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0">
            <img 

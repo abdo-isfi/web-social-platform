@@ -270,15 +270,16 @@ const getUserPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('author', 'username name avatar avatarType')
       .populate('parentThread', 'content author')
+      .populate({
+        path: 'repostOf',
+        populate: { path: 'author', select: 'username name avatar avatarType' }
+      })
       .lean();
 
-    // Format avatar for all posts
-    const formattedPosts = posts.map(post => {
-      if (post.author && post.author.avatar) {
-        post.author.avatar = `data:${post.author.avatarType};base64,${post.author.avatar.toString('base64')}`;
-      }
-      return post;
-    });
+    const { formatThreadResponse } = require('../utils/threadFormatter');
+    const formattedPosts = await Promise.all(
+        posts.map(post => formatThreadResponse(post, currentUserId))
+    );
 
     return responseHandler.success(
       res,

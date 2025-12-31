@@ -8,12 +8,17 @@ export const followerService = {
 
   // Unfollow a user
   unfollowUser: async (userId) => {
-    return await api.delete(`/follower/${userId}/unfollow`);
+    return await api.delete(`/follower/${userId}`);
   },
 
   // Accept follow request
   acceptFollowRequest: async (userId) => {
     return await api.patch('/follower/accept', { followerId: userId });
+  },
+
+  // Reject follow request
+  rejectFollowRequest: async (userId) => {
+    return await api.patch('/follower/reject', { followerId: userId });
   },
 
   // Get followers (if backend implements this later)

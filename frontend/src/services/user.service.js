@@ -8,7 +8,7 @@ export const userService = {
 
   // Update user profile
   updateProfile: async (data, isFormData = false) => {
-    const config = isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    const config = {};
     return await api.patch('/user/me', data, config);
   },
 

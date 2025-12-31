@@ -62,7 +62,7 @@ const sendFollowRequest = async (req, res) => {
     }
 
     const notification = await Notification.create({
-      type: "FOLLOW_REQUEST", // Keeping type for frontend compat, effectively "NEW_FOLLOWER"
+      type: status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER",
       receiver: followingId,
       sender: followerId,
       thread: null,
@@ -148,6 +148,33 @@ const acceptFollowRequest = async (req, res) => {
   }
 };
 
+const rejectFollowRequest = async (req, res) => {
+  try {
+    const followingId = req.user.id;
+    const { followerId } = req.body;
+
+    const followRequest = await Follow.findOneAndDelete({
+      follower: followerId,
+      following: followingId,
+      status: "PENDING"
+    });
+
+    if (!followRequest) {
+      return responseHandler.notFound(res, "Follow request");
+    }
+
+    return responseHandler.success(
+      res,
+      null,
+      "Follow request rejected",
+      statusCodes.SUCCESS
+    );
+  } catch (error) {
+    console.error("Reject follow request error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 const unfollowUser = async (req, res) => {
   try {
     const followerId = req.user.id;
@@ -176,5 +203,6 @@ const unfollowUser = async (req, res) => {
 module.exports = {
   sendFollowRequest,
   acceptFollowRequest,
+  rejectFollowRequest,
   unfollowUser
 };

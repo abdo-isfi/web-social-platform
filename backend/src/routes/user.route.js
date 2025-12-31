@@ -14,9 +14,10 @@ router.patch(
   updateProfile
 );
 
+const optionalAuth = require("../middlewares/optionalAuth");
 router.get('/suggestions', authenticate, userController.getSuggestions);
 router.put('/:userId/privacy', authenticate, userController.updatePrivacy);
-router.get('/:userId', getUserById);
-router.get('/:userId/posts', userController.getUserPosts);
+router.get('/:userId', optionalAuth, getUserById);
+router.get('/:userId/posts', optionalAuth, userController.getUserPosts);
 
 module.exports = router;

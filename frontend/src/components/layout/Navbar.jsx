@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon } from 'lucide-react';
+import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon, LayoutGrid, Users } from 'lucide-react';
 import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
-import { openAuthModal } from '@/store/slices/uiSlice';
+import { openAuthModal, setFeedMode } from '@/store/slices/uiSlice';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
 export function Navbar() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { isAuthenticated, user } = useSelector(state => state.auth);
+  const { feedMode } = useSelector(state => state.ui);
   const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -27,9 +29,8 @@ export function Navbar() {
 
   return (
     <>
-    <header className="fixed top-0 left-0 md:left-[10vw] lg:left-[17.5vw] right-0 md:right-[10vw] lg:right-[17.5vw] z-50 flex flex-col items-center bg-background/80 backdrop-blur-md border-b border-border shadow-sm">
-
-      <div className="flex items-center justify-between w-full px-4 py-3 h-16">
+    <header className="fixed top-4 left-0 right-0 z-50 flex flex-col items-center pointer-events-none">
+      <div className="w-full md:w-[95%] lg:w-[85%] xl:w-[70%] pointer-events-auto bg-white/10 dark:bg-black/30 backdrop-blur-xl border border-white/10 shadow-lg rounded-full px-6 py-2 h-16 flex items-center justify-between mx-auto transition-all duration-300">
         
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
@@ -39,6 +40,35 @@ export function Navbar() {
           </Link>
         </div>
 
+        {/* Center: Feed Filter (Only on Feed Page) */}
+        {location.pathname === '/' && (
+          <div className="hidden md:flex items-center gap-1 bg-white/5 dark:bg-black/20 p-1 rounded-full border border-white/5">
+            <button 
+              onClick={() => dispatch(setFeedMode('public'))}
+              className={cn(
+                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                feedMode === 'public' 
+                  ? "bg-white/20 dark:bg-white/10 text-foreground shadow-sm ring-1 ring-white/10" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              )}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden lg:inline">Public</span>
+            </button>
+            <button 
+              onClick={() => dispatch(setFeedMode('following'))}
+              className={cn(
+                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                feedMode === 'following' 
+                  ? "bg-white/20 dark:bg-white/10 text-foreground shadow-sm ring-1 ring-white/10" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              )}
+            >
+              <Users className="w-4 h-4" />
+              <span className="hidden lg:inline">Following</span>
+            </button>
+          </div>
+        )}
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 md:gap-4">
@@ -90,26 +120,26 @@ export function Navbar() {
           </button>
         </div>
       </div>
-
-      {/* Mobile Menu Content */}
-      <div className={`md:hidden flex flex-col w-full border-t border-border transition-all ease-in-out duration-300 overflow-hidden bg-background
-                       ${isOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+      
+      {/* Mobile Menu Content - Positioned absolutely below the floating navbar */}
+      <div className={`pointer-events-auto absolute top-20 w-[90%] md:w-[400px] border border-white/10 rounded-2xl shadow-xl transition-all ease-in-out duration-300 overflow-hidden bg-background/80 backdrop-blur-xl
+                       ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
         <div className="p-4 space-y-4">
           
 
           <nav className="flex flex-col space-y-1">
-            <Link to="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+            <Link to="/" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">
               <Home className="w-5 h-5" /> Home
             </Link>
             {isAuthenticated && (
               <>
-                <Link to="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                <Link to="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">
                   <User className="w-5 h-5" /> Profile
                 </Link>
-                <Link to="/bookmarks" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                <Link to="/bookmarks" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">
                   <Bookmark className="w-5 h-5" /> Bookmarks
                 </Link>
-                <Link to="/settings" className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium">
+                <Link to="/settings" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">
                   <Settings className="w-5 h-5" /> Settings
                 </Link>
               </>
@@ -117,7 +147,7 @@ export function Navbar() {
              {!isAuthenticated && (
                <button 
                  onClick={() => { dispatch(openAuthModal('login')); toggleMenu(); }}
-                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent text-sm font-medium w-full text-left"
+                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium w-full text-left"
                >
                  <LogIn className="w-5 h-5" /> Log In
                </button>

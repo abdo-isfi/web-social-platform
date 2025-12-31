@@ -4,7 +4,8 @@ import { Bookmark, MessageSquare } from 'lucide-react';
 import { SocialCard } from '@/components/ui/social-card';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { fetchBookmarkedPosts, likePost, unlikePost, bookmarkPost, addComment } from '@/store/slices/postSlice';
+import { fetchBookmarkedPosts, likePost, unlikePost, bookmarkPost, addComment, deletePost, archivePost } from '@/store/slices/postSlice';
+import { followerService } from '@/services/follower.service';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { PostComments } from '@/components/feed/PostComments';
@@ -33,12 +34,24 @@ export function BookmarksPage() {
     }, 'login');
   };
 
-  const handleAction = (id, action) => {
-    requireAuth(() => {
+  const handleAction = (id, action, authorId) => {
+    requireAuth(async () => {
       if (action === 'commented') {
          setActiveCommentId(id);
       } else if (action === 'bookmarked') {
          dispatch(bookmarkPost(id));
+      } else if (action === 'delete') {
+         dispatch(deletePost(id));
+      } else if (action === 'archive') {
+         dispatch(archivePost(id));
+      } else if (action === 'follow') {
+         await followerService.followUser(authorId);
+         dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
+      } else if (action === 'unfollow') {
+         await followerService.unfollowUser(authorId);
+         dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
+      } else if (action === 'report') {
+         console.log(`Reported post ${id}`);
       }
       console.log(`Post ${id}: ${action}`);
     }, 'login');
@@ -129,25 +142,26 @@ export function BookmarksPage() {
                 name: post.author?.name || post.author?.username || 'Unknown',
                 username: post.author?.username || 'unknown',
                 avatar: post.author?.avatar || 'https://github.com/shadcn.png',
-                timeAgo: new Date(post.createdAt).toLocaleDateString(), // simplified
+                timeAgo: post.createdAt ? new Date(post.createdAt).toLocaleDateString() : 'Just now',
               }}
               content={{
                 text: post.content || '',
-                media: post.media || [],
+                media: post.media ? (Array.isArray(post.media) ? post.media : [post.media]) : [],
                 link: post.link,
               }}
               engagement={{
                 likes: post.likeCount || 0,
                 comments: post.commentCount || 0,
-                shares: post.shares || 0,
+                shares: post.repostCount || 0,
                 isLiked: post.isLiked || false,
-                isBookmarked: true, // Always true here initially, but state updates might change it
+                isBookmarked: post.isBookmarked ?? true,
               }}
+              permissions={post.permissions}
               onLike={() => handleLike(post._id || post.id, post.isLiked)}
               onComment={() => handleAction(post._id || post.id, 'commented')}
               onShare={() => handleAction(post._id || post.id, 'shared')}
               onBookmark={() => handleAction(post._id || post.id, 'bookmarked')}
-              onMore={() => handleAction(post._id || post.id, 'more')}
+              onMore={(action) => handleAction(post._id || post.id, action, post.author?._id)}
             >
                  <PostComments 
                     postId={post._id || post.id} 

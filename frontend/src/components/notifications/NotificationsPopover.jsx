@@ -28,6 +28,34 @@ function NotificationItem({ notification, onClick }) {
     const [isFollowing, setIsFollowing] = React.useState(notification.isFollowing);
     const [loading, setLoading] = React.useState(false);
 
+    const handleAccept = async (e) => {
+        e.stopPropagation();
+        try {
+            setLoading(true);
+            await followerService.acceptFollowRequest(notification.sender._id);
+            // Optionally update UI like hiding buttons or changing status
+            setIsFollowing(true);
+        } catch (error) {
+            console.error("Accept error", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleReject = async (e) => {
+        e.stopPropagation();
+        try {
+            setLoading(true);
+            await followerService.rejectFollowRequest(notification.sender._id);
+            // Hide notification item or similar? For now just log and rely on refresh or local state
+            console.log("Rejected");
+        } catch (error) {
+            console.error("Reject error", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleFollow = async (e) => {
         e.stopPropagation();
         try {
@@ -66,12 +94,36 @@ function NotificationItem({ notification, onClick }) {
                         </span>{" "}
                         {notification.type === "FOLLOW_REQUEST" ? "sent you a follow request" : 
                          notification.type === "FOLLOW_ACCEPTED" ? "accepted your follow request" :
+                         notification.type === "NEW_FOLLOWER" ? "followed you" :
                          notification.type === "LIKE" ? "liked your post" : "interacted with you"}
                     </p>
                     <div className="text-xs text-muted-foreground">
                         {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : "Just now"}
                     </div>
                     {notification.type === "FOLLOW_REQUEST" && (
+                        <div className="pt-2 flex gap-2">
+                             <Button 
+                                size="sm" 
+                                className="h-7 text-xs bg-primary text-primary-foreground"
+                                onClick={handleAccept}
+                                disabled={loading || isFollowing}
+                             >
+                                {isFollowing ? "Accepted" : "Accept"}
+                             </Button>
+                             {!isFollowing && (
+                                <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={handleReject}
+                                    disabled={loading}
+                                >
+                                    Reject
+                                </Button>
+                             )}
+                        </div>
+                    )}
+                    {notification.type === "NEW_FOLLOWER" && (
                         <div className="pt-1">
                              <Button 
                                 size="sm" 
