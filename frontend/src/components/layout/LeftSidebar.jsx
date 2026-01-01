@@ -10,6 +10,7 @@ import { NotificationsPopover } from '@/components/notifications/NotificationsPo
 
 export function LeftSidebar() {
   const { isAuthenticated } = useSelector(state => state.auth);
+  const { unreadCount } = useSelector(state => state.notifications);
   const dispatch = useDispatch();
 
   const handleAuthAction = (action) => {
@@ -26,13 +27,14 @@ export function LeftSidebar() {
 
   const navItems = [
     { icon: <Home className="w-6 h-6" />, label: "Home", href: "/" },
+    { icon: <Bell className="w-6 h-6" />, label: "Notifications", href: "/notifications", auth: true },
     { icon: <User className="w-6 h-6" />, label: "Profile", href: "/profile/me", auth: true },
     { icon: <Bookmark className="w-6 h-6" />, label: "Bookmarks", href: "/bookmarks", auth: true },
     { icon: <Settings className="w-6 h-6" />, label: "Settings", href: "/settings", auth: true },
   ];
 
   return (
-    <div className="hidden md:flex flex-col h-full w-[80px] lg:w-[275px] shrink-0 pt-6 pb-2">
+    <div className="flex flex-col h-full w-[80px] lg:w-[275px] shrink-0 pt-0 pb-2">
       <nav className="flex flex-col gap-2 px-2">
         {navItems.map((item, index) => {
           if (item.auth && !isAuthenticated) return null;
@@ -42,34 +44,37 @@ export function LeftSidebar() {
               key={index} 
               to={item.href}
               className={({ isActive }) => cn(
-                "flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 w-full group",
+                "flex items-center gap-4 p-4 rounded-[1.5rem] transition-all duration-200 w-full group relative",
                 isActive 
-                  ? "bg-white/20 dark:bg-white/10 font-bold backdrop-blur-md shadow-sm border border-white/10" 
-                  : "hover:bg-white/10 dark:hover:bg-white/5 border border-transparent hover:border-white/5 text-muted-foreground hover:text-foreground"
+                  ? "bg-primary/10 text-primary font-bold shadow-sm" 
+                  : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-foreground"
               )}
             >
-              {({ isActive }) => (
-                <>
-                  <div className={cn(
-                    "p-1 rounded-lg transition-colors", 
-                    isActive ? "" : "group-hover:bg-white/5"
-                  )}>
-                    {item.icon}
-                  </div>
-                  <span className="text-lg hidden lg:block font-medium">{item.label}</span>
-                </>
-              )}
+              <div className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-primary rounded-r-full transition-all duration-300 transform scale-y-0 opacity-0",
+                "group-[.active]:scale-y-100 group-[.active]:opacity-100"
+              )} />
+              
+              <div className="p-1 rounded-lg transition-colors relative">
+                {item.icon}
+                {item.label === "Notifications" && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white rounded-full text-[10px] font-bold border-2 border-background">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-lg hidden lg:block font-medium">{item.label}</span>
             </NavLink>
           );
         })}
       </nav>
 
       {!isAuthenticated && (
-        <div className="mt-8 mx-2 p-4 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10">
-          <h3 className="font-bold mb-2">Join the conversation</h3>
-          <p className="text-sm text-muted-foreground mb-4">Sign up now to share your thoughts.</p>
-          <Button className="w-full rounded-full shadow-lg" onClick={() => dispatch(openAuthModal('signup'))}>
-            Create Account
+        <div className="mt-8 mx-2 p-6 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-sm">
+          <h3 className="font-bold text-lg mb-2 text-foreground">New here?</h3>
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Sign up now to join the community and share your thoughts.</p>
+          <Button className="w-full rounded-full py-6 font-bold text-base shadow-md hover:shadow-lg transition-all active:scale-95" onClick={() => dispatch(openAuthModal('signup'))}>
+            Join Now
           </Button>
         </div>
       )}

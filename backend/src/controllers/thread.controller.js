@@ -4,10 +4,10 @@ const User = require('../models/user.model');
 const Like=require("../models/like.model");
 const Follow = require('../models/follower.model'); // Added Follow model
 const Notification = require('../models/notification.model'); // Added Notification model
-const { emitToUser } = require('../socket'); // Added socket
-const responseHandler = require("../utils/responseHandler");
-const { statusCodes } = require("../utils/statusCodes");
-
+const responseHandler = require('../utils/responseHandler');
+const { statusCodes } = require('../utils/statusCodes');
+const { emitToUser } = require('../socket');
+const { populateNotification } = require('../utils/notificationHelper');
 const { formatThreadResponse } = require("../utils/threadFormatter");
 
 const createThread = async (req, res) => {
@@ -105,7 +105,7 @@ const createThread = async (req, res) => {
 
     // Populate author details for the response
     const populatedThread = await Thread.findById(thread._id)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     const formattedThread = await formatThreadResponse(populatedThread, req.user.id);
@@ -154,7 +154,7 @@ const getUserThreads = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     const formattedThreads = (await Promise.all(
@@ -191,7 +191,7 @@ const getArchivedThreads = async (req, res) => {
       .sort({ updatedAt: -1 }) // Sort by when they were archived
       .skip(skip)
       .limit(limit)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     const formattedThreads = (await Promise.all(
@@ -220,7 +220,7 @@ const getThreadById = async (req, res) => {
     const userId = req.user.id;          
     const { threadId } = req.params;   
     const thread = await Thread.findOne({ _id: threadId, author: userId,isArchived: false })
-      .populate('author', 'username name avatar avatarType') 
+      .populate('author', '_id username name avatar avatarType') 
       .populate('parentThread', 'content') 
       .lean();
 
@@ -330,7 +330,7 @@ const updateThread = async (req, res) => {
 
     // Populate author username for response
     const updatedThread = await Thread.findById(thread._id)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     return responseHandler.success(
@@ -483,10 +483,10 @@ const getFeed = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .populate({
         path: 'repostOf',
-        populate: { path: 'author', select: 'username name avatar avatarType' }
+        populate: { path: 'author', select: '_id username name avatar avatarType' }
       })
       .lean();
 
@@ -537,22 +537,38 @@ const repostThread = async (req, res) => {
         });
 
         // Notification
+        // Notification: Consolidate repost notification
         if (originalThread.author.toString() !== userId) {
-            const notif = await Notification.create({
-                type: 'NEW_THREAD', // Or REPOST
+            const existingNotif = await Notification.findOne({
+                type: 'NEW_THREAD', // Using NEW_THREAD as defined in current implementation
                 receiver: originalThread.author,
                 sender: userId,
-                thread: repost._id,
-                isRead: false
+                thread: repost._id
             });
-             emitToUser(originalThread.author, 'notification:new', notif);
+
+            let notif;
+            if (existingNotif) {
+                existingNotif.isRead = false;
+                existingNotif.updatedAt = new Date();
+                notif = await existingNotif.save();
+            } else {
+                notif = await Notification.create({
+                    type: 'NEW_THREAD',
+                    receiver: originalThread.author,
+                    sender: userId,
+                    thread: repost._id,
+                    isRead: false
+                });
+            }
+            const populatedNotif = await populateNotification(notif._id);
+            emitToUser(originalThread.author, 'notification:new', populatedNotif || notif);
         }
 
         const populatedRepost = await Thread.findById(repost._id)
-          .populate('author', 'username name avatar avatarType')
+          .populate('author', '_id username name avatar avatarType')
           .populate({
             path: 'repostOf',
-            populate: { path: 'author', select: 'username name avatar avatarType' }
+            populate: { path: 'author', select: '_id username name avatar avatarType' }
           })
           .lean();
 
@@ -574,6 +590,21 @@ const unrepostThread = async (req, res) => {
         const repost = await Thread.findOneAndDelete({ author: userId, repostOf: threadId });
         
         if(!repost) return responseHandler.notFound(res, "Repost");
+
+        // Clean up notification
+        await Notification.deleteMany({
+            sender: userId,
+            thread: repost._id, // The repost itself
+            type: 'NEW_THREAD'
+        });
+
+        // Also if the notification was linked to the original thread (some implementations might do that)
+        await Notification.deleteMany({
+            sender: userId,
+            receiver: { $ne: userId },
+            type: 'NEW_THREAD',
+            $or: [{ thread: threadId }]
+        });
 
         return responseHandler.success(res, null, "Unreposted successfully", statusCodes.SUCCESS);
     } catch (error) {
@@ -633,10 +664,10 @@ const getBookmarkedThreads = async (req, res) => {
     const pagedBookmarkIds = reversedBookmarks.slice(skip, skip + limit);
 
     const threads = await Thread.find({ _id: { $in: pagedBookmarkIds } })
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .populate({
         path: 'repostOf',
-        populate: { path: 'author', select: 'username name avatar avatarType' }
+        populate: { path: 'author', select: '_id username name avatar avatarType' }
       })
       .lean();
 

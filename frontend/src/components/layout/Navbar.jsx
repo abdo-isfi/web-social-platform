@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Home, User, Bookmark, Settings, LogIn, Menu, Sun, Moon, LayoutGrid, Users } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, LogIn, Menu, Sun, Moon, LayoutGrid, Users } from 'lucide-react';
 import { NotificationsPopover } from '@/components/notifications/NotificationsPopover';
 import { openAuthModal, setFeedMode } from '@/store/slices/uiSlice';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { cn } from '@/lib/utils';
 
 export function Navbar() {
   const dispatch = useDispatch();
   const location = useLocation();
   const { isAuthenticated, user } = useSelector(state => state.auth);
+  const { notifications, unreadCount } = useSelector(state => state.notifications);
   const { feedMode } = useSelector(state => state.ui);
+  const requireAuth = useAuthGuard();
   const { theme, toggleTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,26 +45,26 @@ export function Navbar() {
 
         {/* Center: Feed Filter (Only on Feed Page) */}
         {location.pathname === '/' && (
-          <div className="hidden md:flex items-center gap-1 bg-white/5 dark:bg-black/20 p-1 rounded-full border border-white/5">
+          <div className="hidden md:flex items-center gap-1 bg-muted/30 p-1 rounded-full border border-border/10 backdrop-blur-md">
             <button 
               onClick={() => dispatch(setFeedMode('public'))}
               className={cn(
-                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                "flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold transition-all duration-300",
                 feedMode === 'public' 
-                  ? "bg-white/20 dark:bg-white/10 text-foreground shadow-sm ring-1 ring-white/10" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  ? "bg-card text-primary shadow-sm ring-1 ring-border/50 translate-z-0 scale-105" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               )}
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden lg:inline">Public</span>
             </button>
             <button 
-              onClick={() => dispatch(setFeedMode('following'))}
+              onClick={() => requireAuth(() => dispatch(setFeedMode('following')))}
               className={cn(
-                "flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                "flex items-center gap-2 px-6 py-2 rounded-full text-sm font-bold transition-all duration-300",
                 feedMode === 'following' 
-                  ? "bg-white/20 dark:bg-white/10 text-foreground shadow-sm ring-1 ring-white/10" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  ? "bg-card text-primary shadow-sm ring-1 ring-border/50 translate-z-0 scale-105" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               )}
             >
               <Users className="w-4 h-4" />
@@ -133,7 +136,17 @@ export function Navbar() {
             </Link>
             {isAuthenticated && (
               <>
-                <Link to="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">
+                <Link to="/notifications" className="flex items-center justify-between p-3 rounded-xl hover:bg-white/10 text-sm font-medium" onClick={toggleMenu}>
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-5 h-5" /> Notifications
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+                <Link to="/profile/me" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium" onClick={toggleMenu}>
                   <User className="w-5 h-5" /> Profile
                 </Link>
                 <Link to="/bookmarks" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-sm font-medium">

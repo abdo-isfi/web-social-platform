@@ -4,6 +4,95 @@ const Notification = require('../models/notification.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const { emitToUser } = require('../socket');
+const { populateNotification } = require('../utils/notificationHelper');
+
+/**
+ * GET FOLLOWERS
+ */
+const getFollowers = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user?.id;
+
+    const followers = await Follow.find({
+      following: userId,
+      status: 'ACCEPTED'
+    })
+    .populate('follower', '_id name username avatar avatarType bio')
+    .sort({ createdAt: -1 })
+    .lean();
+
+    // Check if current user is following these followers
+    let followingSet = new Set();
+    if (currentUserId) {
+        const following = await Follow.find({
+            follower: currentUserId,
+            status: 'ACCEPTED'
+        }).select('following');
+        followingSet = new Set(following.map(f => f.following.toString()));
+    }
+
+    const formattedFollowers = followers.map(f => {
+        const user = f.follower;
+        if (user && user.avatar && Buffer.isBuffer(user.avatar)) {
+            user.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
+        }
+        return {
+            ...user,
+            isFollowing: followingSet.has(user._id.toString())
+        };
+    });
+
+    return responseHandler.success(res, formattedFollowers, "Followers fetched successfully", statusCodes.SUCCESS);
+  } catch (error) {
+    console.error("Get followers error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * GET FOLLOWING
+ */
+const getFollowing = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user?.id;
+
+    const followingList = await Follow.find({
+      follower: userId,
+      status: 'ACCEPTED'
+    })
+    .populate('following', '_id name username avatar avatarType bio')
+    .sort({ createdAt: -1 })
+    .lean();
+
+    // Check if current user is following these users
+    let followingSet = new Set();
+    if (currentUserId) {
+        const following = await Follow.find({
+            follower: currentUserId,
+            status: 'ACCEPTED'
+        }).select('following');
+        followingSet = new Set(following.map(f => f.following.toString()));
+    }
+
+    const formattedFollowing = followingList.map(f => {
+        const user = f.following;
+        if (user && user.avatar && Buffer.isBuffer(user.avatar)) {
+            user.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
+        }
+        return {
+            ...user,
+            isFollowing: followingSet.has(user._id.toString())
+        };
+    });
+
+    return responseHandler.success(res, formattedFollowing, "Following fetched successfully", statusCodes.SUCCESS);
+  } catch (error) {
+    console.error("Get following error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
 
 /**
  * SEND FOLLOW REQUEST
@@ -61,15 +150,31 @@ const sendFollowRequest = async (req, res) => {
       await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
     }
 
-    const notification = await Notification.create({
-      type: status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER",
-      receiver: followingId,
+    // Consolidate notification: find existing follow-related notif from this sender to receiver
+    const existingNotif = await Notification.findOne({
       sender: followerId,
-      thread: null,
-      isRead: false
+      receiver: followingId,
+      type: { $in: ["FOLLOW_REQUEST", "NEW_FOLLOWER"] }
     });
 
-    emitToUser(followingId, "notification:new", notification);
+    let notification;
+    if (existingNotif) {
+      existingNotif.type = status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER";
+      existingNotif.isRead = false;
+      existingNotif.updatedAt = new Date();
+      notification = await existingNotif.save();
+    } else {
+      notification = await Notification.create({
+        type: status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER",
+        receiver: followingId,
+        sender: followerId,
+        thread: null,
+        isRead: false
+      });
+    }
+
+    const populatedNotif = await populateNotification(notification._id);
+    emitToUser(followingId, "notification:new", populatedNotif || notification);
 
     return responseHandler.success(
       res,
@@ -121,6 +226,13 @@ const acceptFollowRequest = async (req, res) => {
     await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
     await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
 
+    // Remove any previous follow requests/notifications before creating acceptance notif
+    await Notification.deleteMany({
+      sender: followerId,
+      receiver: followingId,
+      type: { $in: ["FOLLOW_REQUEST", "NEW_FOLLOWER"] }
+    });
+
     const notification = await Notification.create({
       type: "FOLLOW_ACCEPTED",
       receiver: followerId,
@@ -129,7 +241,8 @@ const acceptFollowRequest = async (req, res) => {
       isRead: false
     });
 
-    emitToUser(followerId, "notification:new", notification);
+    const populatedNotif = await populateNotification(notification._id);
+    emitToUser(followerId, "notification:new", populatedNotif || notification);
 
     return responseHandler.success(
       res,
@@ -159,9 +272,12 @@ const rejectFollowRequest = async (req, res) => {
       status: "PENDING"
     });
 
-    if (!followRequest) {
-      return responseHandler.notFound(res, "Follow request");
-    }
+    // Delete associated notification
+    await Notification.deleteMany({
+      sender: followerId,
+      receiver: followingId,
+      type: { $in: ["FOLLOW_REQUEST", "NEW_FOLLOWER"] }
+    });
 
     return responseHandler.success(
       res,
@@ -193,6 +309,13 @@ const unfollowUser = async (req, res) => {
     await User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
     await User.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
 
+    // Clean up all follow-related notifications from this user to that user
+    await Notification.deleteMany({
+      sender: followerId,
+      receiver: userId,
+      type: { $in: ["FOLLOW_REQUEST", "NEW_FOLLOWER", "FOLLOW_ACCEPTED"] }
+    });
+
     return responseHandler.success(res, null, "Unfollowed successfully", statusCodes.SUCCESS);
   } catch (error) {
     console.error("Unfollow error:", error);
@@ -204,5 +327,7 @@ module.exports = {
   sendFollowRequest,
   acceptFollowRequest,
   rejectFollowRequest,
-  unfollowUser
+  unfollowUser,
+  getFollowers,
+  getFollowing
 };

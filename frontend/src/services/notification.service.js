@@ -6,6 +6,10 @@ export const notificationService = {
     return await api.get('/notification/unread');
   },
 
+  getAllNotifications: async () => {
+    return await api.get('/notification/all');
+  },
+
   // Mark notification as read
   markAsRead: async (notificationId) => {
     return await api.put(`/notification/${notificationId}/read`);
@@ -16,8 +20,8 @@ export const notificationService = {
     return await api.put('/notification/read-all');
   },
 
-  // Delete notification (if backend implements this later)
-  deleteNotification: async (notificationId) => {
-    return await api.delete(`/notification/${notificationId}`);
+  // Delete all notifications
+  deleteAllNotifications: async () => {
+    return await api.delete('/notification/all');
   },
 };

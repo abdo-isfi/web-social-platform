@@ -268,7 +268,7 @@ const getUserPosts = async (req, res) => {
     
     const posts = await Thread.find({ author: userId, isArchived: false })
       .sort({ createdAt: -1 })
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .populate('parentThread', 'content author')
       .populate({
         path: 'repostOf',
@@ -308,7 +308,7 @@ const getSuggestions = async (req, res) => {
     // Find users not in the exclusion list
     // Use aggregation to get random sample or just find with limit for now
     const suggestions = await User.find({ _id: { $nin: followingIds } })
-      .select('name username avatar avatarType')
+      .select('_id name username avatar avatarType')
       .limit(5)
       .lean();
 

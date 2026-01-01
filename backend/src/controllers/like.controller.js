@@ -6,6 +6,7 @@ const { statusCodes } = require('../utils/statusCodes');
 
 const Notification = require('../models/notification.model');
 const { emitToUser } = require('../socket');
+const { populateNotification } = require('../utils/notificationHelper');
 
 const likeThread = async (req, res) => {
   try {
@@ -43,20 +44,35 @@ const likeThread = async (req, res) => {
 
     // Notification
     if (target.author.toString() !== userId) {
-        const notifData = {
-            type: 'LIKE',
-            receiver: target.author,
-            sender: userId,
-            isRead: false
+        // Consolidate notification: find existing like notif from this sender for this target
+        const notifQuery = {
+          type: 'LIKE',
+          receiver: target.author,
+          sender: userId
         };
-        if (targetType === 'thread') notifData.thread = threadId;
-        else {
-             notifData.comment = threadId;
-             notifData.thread = target.thread; // Link to parent thread for comment like context
+        if (targetType === 'thread') notifQuery.thread = threadId;
+        else notifQuery.comment = threadId;
+
+        const existingNotif = await Notification.findOne(notifQuery);
+
+        let notif;
+        if (existingNotif) {
+          existingNotif.isRead = false;
+          existingNotif.updatedAt = new Date();
+          notif = await existingNotif.save();
+        } else {
+          const notifData = {
+            ...notifQuery,
+            isRead: false
+          };
+          if (targetType === 'comment') {
+            notifData.thread = target.thread; // Context
+          }
+          notif = await Notification.create(notifData);
         }
 
-        const notif = await Notification.create(notifData);
-        emitToUser(target.author, 'notification:new', notif);
+        const populatedNotif = await populateNotification(notif._id);
+        emitToUser(target.author, 'notification:new', populatedNotif || notif);
     }
 
     return responseHandler.success(
@@ -104,6 +120,13 @@ const unlikeThread = async (req, res) => {
     if (!like) {
       return responseHandler.notFound(res, "Like");
     }
+
+    // Clean up notification
+    await Notification.deleteMany({
+      sender: userId,
+      $or: [{ thread: threadId }, { comment: threadId }],
+      type: 'LIKE'
+    });
 
     return responseHandler.success(
       res,

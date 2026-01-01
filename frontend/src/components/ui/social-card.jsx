@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 import {
   Heart,
   MessageCircle,
@@ -13,6 +14,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Link2, Flag, Archive, Trash2, Copy, Check, UserPlus, UserMinus, Edit3, ArchiveRestore } from "lucide-react";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 export function SocialCard({
   id,
@@ -30,6 +32,7 @@ export function SocialCard({
   permissions, // New prop: { isOwner, isFollowingAuthor, canFollow, canDelete, etc. }
   isArchived = false // New prop to determine archive status
 }) {
+  const requireAuth = useAuthGuard();
   const [isLiked, setIsLiked] = useState(engagement?.isLiked ?? false);
   const [isBookmarked, setIsBookmarked] = useState(engagement?.isBookmarked ?? false);
   const [likes, setLikes] = useState(engagement?.likes ?? 0);
@@ -43,19 +46,34 @@ export function SocialCard({
   }, [engagement?.isLiked, engagement?.likes, engagement?.isBookmarked]);
 
   const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikes(prev => isLiked ? prev - 1 : prev + 1);
-    onLike?.();
+    requireAuth(() => {
+      setIsLiked(!isLiked);
+      setLikes(prev => isLiked ? prev - 1 : prev + 1);
+      onLike?.();
+    });
   };
-
+  
+  const handleComment = () => {
+    requireAuth(() => {
+      onComment?.();
+    });
+  };
+  
+  const handleShare = () => {
+    requireAuth(() => {
+      onShare?.();
+    });
+  };
+  
   const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    onBookmark?.();
+    requireAuth(() => {
+      setIsBookmarked(!isBookmarked);
+      onBookmark?.();
+    });
   };
 
   const handleCopyLink = () => {
     const postLink = `${window.location.origin}/post/${id || engagement?.id || author?.username}`;
-    navigator.clipboard.writeText(postLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -63,15 +81,15 @@ export function SocialCard({
   return (
     <div
       className={cn(
-        "w-full max-w-2xl mx-auto",
-        "bg-white/10 dark:bg-black/20 backdrop-blur-md text-foreground",
-        "border border-white/10 shadow-sm transition-all hover:bg-white/15 dark:hover:bg-black/25",
-        "rounded-3xl",
+        "mx-2 md:mx-4",
+        "bg-card text-card-foreground",
+        "border border-border/50 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02]",
+        "rounded-2xl overflow-hidden",
         className
       )}
     >
-      <div className="divide-y divide-border">
-        <div className="p-6">
+      <div className="flex flex-col">
+        <div className="p-4 sm:p-5">
           {/* Repost Header */}
           {repostedBy && (
             <div className="flex items-center gap-2 mb-3 px-1 text-xs font-semibold text-muted-foreground">
@@ -81,22 +99,24 @@ export function SocialCard({
           )}
 
           {/* Author section */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <img
-                src={author?.avatar}
-                alt={author?.name}
-                className="w-10 h-10 rounded-full ring-2 ring-background focus:outline-none focus:ring-primary/20 transition-all hover:opacity-90"
-              />
-              <div>
-                <h3 className="text-sm font-semibold text-foreground hover:underline cursor-pointer">
+          <div className="flex items-center justify-between mb-5">
+            <Link to={`/profile/${author?._id || author?.id}`} className="flex items-center gap-4 group/author">
+              <div className="relative">
+                <img
+                  src={author?.avatar || 'https://github.com/shadcn.png'}
+                  alt={author?.name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-background shadow-sm transition-transform group-hover/author:scale-105"
+                />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-base font-bold text-foreground leading-tight group-hover/author:text-primary transition-colors">
                   {author?.name}
                 </h3>
-                <p className="text-xs text-muted-foreground">
-                  @{author?.username} · {author?.timeAgo}
+                <p className="text-sm text-muted-foreground/80 leading-tight mt-0.5">
+                  @{author?.username} · <span className="text-xs opacity-70 font-medium">{author?.timeAgo}</span>
                 </p>
               </div>
-            </div>
+            </Link>
             
             <Popover>
               <PopoverTrigger asChild>
@@ -158,7 +178,7 @@ export function SocialCard({
                     <>
                       {permissions.canFollow && (
                         <button 
-                          onClick={() => onMore("follow")}
+                          onClick={() => requireAuth(() => onMore("follow"))}
                           className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors w-full text-left font-medium"
                         >
                           <UserPlus className="w-4 h-4 text-primary" />
@@ -167,7 +187,7 @@ export function SocialCard({
                       )}
                       {permissions.isFollowing && (
                          <button 
-                          onClick={() => onMore("unfollow")}
+                          onClick={() => requireAuth(() => onMore("unfollow"))}
                           className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors w-full text-left font-medium"
                          >
                            <UserMinus className="w-4 h-4 text-muted-foreground" />
@@ -180,9 +200,11 @@ export function SocialCard({
                           <div className="h-px bg-border my-1" />
                           <button 
                             onClick={() => {
-                              if (window.confirm("Are you sure you want to report this post? Our team will review it.")) {
-                                onMore("report");
-                              }
+                              requireAuth(() => {
+                                if (window.confirm("Are you sure you want to report this post? Our team will review it.")) {
+                                  onMore("report");
+                                }
+                              });
                             }}
                             className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-destructive/10 text-destructive rounded-lg transition-colors w-full text-left font-medium"
                           >
@@ -199,7 +221,7 @@ export function SocialCard({
           </div>
 
           {/* Content section */}
-          <p className="text-foreground mb-4 whitespace-pre-wrap">
+          <p className="text-[15px] sm:text-base text-foreground/90 leading-relaxed mb-5 whitespace-pre-wrap">
             {content?.text}
           </p>
 
@@ -251,55 +273,58 @@ export function SocialCard({
           )}
 
           {/* Engagement section */}
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between pt-4 mt-2 border-t border-border/10">
+            <div className="flex items-center gap-2 sm:gap-6">
               <button
                 type="button"
                 onClick={handleLike}
                 className={cn(
-                  "flex items-center gap-2 text-sm transition-colors",
+                  "flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-all duration-200 group/btn",
                   isLiked
-                    ? "text-rose-600"
-                    : "text-muted-foreground hover:text-rose-600"
+                    ? "text-rose-600 bg-rose-500/10"
+                    : "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/5"
                 )}
               >
                 <Heart
                   className={cn(
-                    "w-5 h-5 transition-all",
-                    isLiked && "fill-current scale-110"
+                    "w-5 h-5 transition-all group-active/btn:scale-125",
+                    isLiked && "fill-current"
                   )}
                 />
-                <span>{likes}</span>
+                <span className="font-semibold">{likes}</span>
               </button>
+              
               <button
                 type="button"
-                onClick={onComment}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                onClick={handleComment}
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all duration-200 group/btn active:scale-95"
               >
-                <MessageCircle className="w-5 h-5" />
-                <span>{engagement?.comments}</span>
+                <MessageCircle className="w-5 h-5 transition-transform group-hover/btn:scale-110" />
+                <span className="font-semibold">{engagement?.comments}</span>
               </button>
+              
               <button
                 type="button"
-                onClick={onShare}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-green-500 transition-colors"
+                onClick={handleShare}
+                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm text-muted-foreground hover:text-green-500 hover:bg-green-500/5 transition-all duration-200 group/btn active:scale-95"
               >
-                <Share2 className="w-5 h-5" />
-                <span>{engagement?.shares}</span>
+                <Share2 className="w-5 h-5 transition-transform group-hover/btn:scale-110" />
+                <span className="font-semibold">{engagement?.shares}</span>
               </button>
             </div>
+            
             <button
               type="button"
               onClick={handleBookmark}
               className={cn(
-                "p-2 rounded-full transition-all",
+                "p-2.5 rounded-full transition-all duration-200 active:scale-90",
                 isBookmarked 
-                  ? "text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10" 
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "text-yellow-500 bg-yellow-500/10" 
+                  : "text-muted-foreground hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-foreground"
               )}
             >
               <Bookmark className={cn(
-                "w-5 h-5 transition-transform",
+                "w-5 h-5 transition-all",
                 isBookmarked && "fill-current scale-110"
               )} />
             </button>

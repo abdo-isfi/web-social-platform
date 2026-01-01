@@ -80,7 +80,7 @@ export function BookmarksPage() {
 
   if (loading && posts.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="w-full flex flex-col gap-[2px]">
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-4">
             <h1 className="text-xl font-bold">Bookmarks</h1>
             <p className="text-sm text-muted-foreground">Saved posts</p>
@@ -94,7 +94,7 @@ export function BookmarksPage() {
 
   if (error) {
       return (
-        <div className="max-w-2xl mx-auto">
+        <div className="w-full">
              <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-4 mb-6">
                 <h1 className="text-xl font-bold">Bookmarks</h1>
                 <p className="text-sm text-muted-foreground">Saved posts</p>
@@ -110,7 +110,7 @@ export function BookmarksPage() {
 
   if (!loading && posts.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="w-full">
           <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-4">
               <h1 className="text-xl font-bold">Bookmarks</h1>
               <p className="text-sm text-muted-foreground">Saved posts</p>
@@ -128,11 +128,22 @@ export function BookmarksPage() {
   }
 
   return (
-      <div className="max-w-2xl mx-auto space-y-6 mb-20">
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-4">
-              <h1 className="text-xl font-bold">Bookmarks</h1>
-              <p className="text-sm text-muted-foreground">@{posts.length} Saved posts</p>
+      <div className="w-full py-6 px-0 mb-20">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-border/40 px-6">
+              <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary/10 rounded-2xl flex-shrink-0">
+                      <Bookmark className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                      <h1 className="text-2xl font-black tracking-tight">Bookmarks</h1>
+                      <p className="text-[13px] font-medium text-muted-foreground/70">
+                          {posts.length} saved posts
+                      </p>
+                  </div>
+              </div>
           </div>
+
+          <div className="flex flex-col gap-[2px]">
 
           {posts.map(post => (
             <SocialCard
@@ -169,6 +180,7 @@ export function BookmarksPage() {
                  />
             </SocialCard>
           ))}
+          </div>
 
         <CommentDialog 
             open={!!activeCommentId} 

@@ -126,10 +126,12 @@ export default function Feed() {
   const filteredPosts = posts;
 
   return (
-    <div className="space-y-0 -mt-6">
-      {/* Feed Filter Mini Navbar */}
-      <div className="px-4 py-6 space-y-6">
-        <CreatePost onPost={handleNewPost} />
+    <div className="space-y-0 mt-0">
+      {/* Feed Container */}
+      <div className="flex flex-col gap-[2px]">
+        <div className="px-0 py-6">
+          <CreatePost onPost={handleNewPost} />
+        </div>
 
         {loading && posts.length === 0 ? (
           <>
@@ -171,6 +173,7 @@ export default function Feed() {
                     username: post.author?.username
                   } : null}
                   author={{
+                    _id: displayPost.author?._id || displayPost.author?.id,
                     name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
                     username: displayPost.author?.username || 'unknown',
                     avatar: authorAvatar,

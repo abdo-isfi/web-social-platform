@@ -13,16 +13,16 @@ export function AppLayout({ children }) {
       <Navbar />
       
       
-      <div className="w-full md:w-[95%] lg:w-[85%] xl:w-[70%] mx-auto flex justify-between items-start gap-6 pt-24 relative z-10 px-6 min-h-screen bg-background/40 backdrop-blur-3xl border-x border-white/10 shadow-2xl rounded-t-[40px] mt-4">
-        <div className="shrink-0 sticky top-24 h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
+      <div className="w-full md:w-[95%] lg:w-[85%] xl:w-[70%] mx-auto flex justify-between items-start pt-24 relative z-10 px-0 min-h-screen bg-background/40 backdrop-blur-3xl border-x border-border/10 rounded-t-[0px] mt-0">
+        <div className="shrink-0 hidden md:block sticky top-24 h-[calc(100vh-96px)] overflow-y-auto scrollbar-hide border-r border-border/50 px-0">
           <LeftSidebar />
         </div>
         
-        <main className="flex-1 min-w-0 max-w-[640px] mx-auto pb-10">
+        <main className="flex-1 min-w-0 pb-10">
           {children}
         </main>
         
-        <div className="shrink-0 hidden xl:block sticky top-24 h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
+        <div className="shrink-0 hidden xl:block sticky top-24 h-[calc(100vh-96px)] overflow-y-auto scrollbar-hide border-l border-border/50 px-0">
           <RightSidebar />
         </div>
       </div>

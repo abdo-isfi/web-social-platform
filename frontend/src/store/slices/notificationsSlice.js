@@ -9,6 +9,13 @@ export const fetchNotifications = createAsyncThunk(
   }
 );
 
+export const fetchAllNotifications = createAsyncThunk(
+  'notifications/fetchAll',
+  async () => {
+    return await notificationService.getAllNotifications();
+  }
+);
+
 export const markNotificationAsRead = createAsyncThunk(
   'notifications/markAsRead',
   async (notificationId) => {
@@ -21,6 +28,13 @@ export const markAllNotificationsAsRead = createAsyncThunk(
   'notifications/markAllAsRead',
   async () => {
     await notificationService.markAllAsRead();
+  }
+);
+
+export const clearAllNotifications = createAsyncThunk(
+  'notifications/clearAll',
+  async () => {
+    await notificationService.deleteAllNotifications();
   }
 );
 
@@ -63,6 +77,20 @@ const notificationsSlice = createSlice({
         state.loading = false;
         state.error = action.error.message;
       })
+      // Fetch all notifications
+      .addCase(fetchAllNotifications.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllNotifications.fulfilled, (state, action) => {
+        state.loading = false;
+        state.notifications = action.payload || [];
+        state.unreadCount = state.notifications.filter(n => !n.isRead).length;
+      })
+      .addCase(fetchAllNotifications.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message;
+      })
       // Mark as read
       .addCase(markNotificationAsRead.fulfilled, (state, action) => {
         const notification = state.notifications.find(n => n._id === action.payload);
@@ -76,6 +104,11 @@ const notificationsSlice = createSlice({
         state.notifications.forEach(n => {
           n.isRead = true;
         });
+        state.unreadCount = 0;
+      })
+      // Clear all notifications
+      .addCase(clearAllNotifications.fulfilled, (state) => {
+        state.notifications = [];
         state.unreadCount = 0;
       });
   },

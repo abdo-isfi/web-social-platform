@@ -25,7 +25,7 @@ const search = async (req, res) => {
       )
       .sort({ score: { $meta: "textScore" } })
       .limit(10)
-      .select('name username avatar avatarType isPrivate')
+      .select('_id name username avatar avatarType isPrivate')
       .lean();
 
       // Fallback to regex if no text match found (for partial names)
@@ -37,7 +37,7 @@ const search = async (req, res) => {
           ]
         })
         .limit(10)
-        .select('name username avatar avatarType isPrivate')
+        .select('_id name username avatar avatarType isPrivate')
         .lean();
       }
     }
@@ -50,7 +50,7 @@ const search = async (req, res) => {
       )
       .sort({ score: { $meta: "textScore" }, createdAt: -1 })
       .limit(20)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
       
       // Fallback for hashtags specifically if the query looks like a tag
@@ -59,7 +59,7 @@ const search = async (req, res) => {
          threads = await Thread.find({ hashtags: tag, isArchived: false })
          .sort({ createdAt: -1 })
          .limit(20)
-         .populate('author', 'username name avatar avatarType')
+         .populate('author', '_id username name avatar avatarType')
          .lean();
       }
     }

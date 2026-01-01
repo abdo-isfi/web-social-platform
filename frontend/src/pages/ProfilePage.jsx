@@ -9,11 +9,13 @@ import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SocialCard } from '@/components/ui/social-card';
 import { userService } from '@/services/user.service';
-import { followerService } from '@/services/follower.service';
 import { postService } from '@/services/post.service';
+import { followUser, unfollowUser } from '@/store/slices/userSlice';
 import { cn } from '@/lib/utils';
-import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock, Cake } from 'lucide-react';
+import { openAuthModal } from '@/store/slices/uiSlice';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { FollowListModal } from '@/components/modals/FollowListModal';
 import { PostComments } from '@/components/feed/PostComments';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 
@@ -39,7 +41,9 @@ export function ProfilePage() {
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [replying, setReplying] = useState(false);
-
+  const [isFollowListOpen, setIsFollowListOpen] = useState(false);
+  const [followListType, setFollowListType] = useState('followers'); // 'followers' or 'following'
+ 
   const isOwnProfile = isAuthenticated && (id === 'me' || id === (currentUser?._id || currentUser?.id));
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -51,38 +55,41 @@ export function ProfilePage() {
   }, [profile, currentUser, isOwnProfile]);
 
   const handleFollowToggle = async () => {
-    try {
-      if (isFollowing || profile.followStatus === 'PENDING') {
-        await followerService.unfollowUser(profile._id);
-        setIsFollowing(false);
-        setProfile(prev => ({ 
-            ...prev, 
-            followersCount: Math.max(0, (isFollowing ? prev.followersCount - 1 : prev.followersCount)),
-            isFollowing: false,
-            followStatus: null
-        }));
-      } else {
-        const response = await followerService.followUser(profile._id);
-        const status = response.data?.status || (profile.isPrivate ? 'PENDING' : 'ACCEPTED');
-        
-        if (status === 'ACCEPTED') {
-            setIsFollowing(true);
-            setProfile(prev => ({ 
-                ...prev, 
-                followersCount: (prev.followersCount || 0) + 1,
-                isFollowing: true,
-                followStatus: 'ACCEPTED'
-            }));
+    requireAuth(async () => {
+      try {
+        if (isFollowing || profile.followStatus === 'PENDING') {
+          dispatch(unfollowUser(profile._id));
+          setIsFollowing(false);
+          setProfile(prev => ({ 
+              ...prev, 
+              followersCount: Math.max(0, (isFollowing ? prev.followersCount - 1 : prev.followersCount)),
+              isFollowing: false,
+              followStatus: null
+          }));
         } else {
-            setProfile(prev => ({ 
-                ...prev, 
-                followStatus: 'PENDING'
-            }));
+          const result = await dispatch(followUser(profile._id));
+          const responseData = result.payload;
+          const status = responseData?.status || (profile.isPrivate ? 'PENDING' : 'ACCEPTED');
+          
+          if (status === 'ACCEPTED') {
+              setIsFollowing(true);
+              setProfile(prev => ({ 
+                  ...prev, 
+                  followersCount: (prev.followersCount || 0) + 1,
+                  isFollowing: true,
+                  followStatus: 'ACCEPTED'
+              }));
+          } else {
+              setProfile(prev => ({ 
+                  ...prev, 
+                  followStatus: 'PENDING'
+              }));
+          }
         }
+      } catch (error) {
+        console.error("Follow toggle failed", error);
       }
-    } catch (error) {
-      console.error("Follow toggle failed", error);
-    }
+    });
   };
 
   const fetchLikedPosts = async () => {
@@ -136,7 +143,7 @@ export function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [id, currentUser, activeTab, isOwnProfile]);
+  }, [id, currentUser, isOwnProfile]);
 
   useEffect(() => {
     if (isAuthenticated || id !== 'me') {
@@ -277,9 +284,23 @@ export function ProfilePage() {
 
   const displayList = activeTab === 'likes' ? likedPosts : activeTab === 'archived' ? archivedPosts : filteredPosts;
 
-  if (loading) {
+  const handleEditProfile = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleOpenFollowers = () => {
+    setFollowListType('followers');
+    setIsFollowListOpen(true);
+  };
+
+  const handleOpenFollowing = () => {
+    setFollowListType('following');
+    setIsFollowListOpen(true);
+  };
+
+  if (loading && !profile) {
     return (
-      <div className="space-y-6">
+      <div className="w-full flex flex-col gap-[2px] mb-20">
         <div className="animate-pulse">
           <div className="h-60 bg-muted rounded-t-3xl" />
           <div className="p-6 space-y-4">
@@ -305,98 +326,151 @@ export function ProfilePage() {
   return (
     <>
       <div className="space-y-6">
-        <div className="relative flex flex-col">
-          <div className="h-48 sm:h-52 md:h-60 w-full relative">
-            {profile.banner ? (
-              <img src={profile.banner} alt="Banner" className="w-full h-full object-cover rounded-t-3xl" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-t-3xl" />
-            )}
+        {/* Profile Header & Banner */}
+        <div className="relative flex flex-col items-center">
+          <div className="h-48 sm:h-52 md:h-60 w-full relative group overflow-hidden px-0 sm:px-4">
+            <div className="w-full h-full relative rounded-3xl overflow-hidden">
+              {profile.banner ? (
+                <img src={profile.banner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-background transition-colors" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
+            </div>
           </div>
           
-          <div className="px-4 pb-4">
-            <div className="flex justify-between items-start -mt-[4rem] sm:-mt-[5rem] mb-3">
-              <div className="p-1 bg-background rounded-full relative z-10 w-32 h-32 sm:w-40 sm:h-40">
-                <img 
-                  src={profile.avatar || 'https://github.com/shadcn.png'} 
-                  alt={profile.name} 
-                  className="w-full h-full rounded-full object-cover border-4 border-background" 
-                />
+          {/* Profile Details Card */}
+          <div className="w-full px-4 pb-4">
+            <div className="bg-card/50 backdrop-blur-sm rounded-[2.5rem] border border-border/50 p-6 sm:p-8 shadow-sm flex flex-col gap-6 -mt-16 sm:-mt-20 relative z-10 transition-all hover:bg-card">
+              {/* Header: Avatar on left, Follow/Edit button on right */}
+              <div className="flex justify-between items-end">
+                <div className="relative">
+                  <img
+                    src={profile.avatar || 'https://github.com/shadcn.png'}
+                    alt={profile.username}
+                    className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-background shadow-xl object-cover"
+                  />
+                </div>
+                
+                <div className="pb-2">
+                  {isOwnProfile ? (
+                    <Button 
+                      variant="outline" 
+                      className="rounded-full font-bold border-2 px-6 py-2 hover:bg-muted/50 transition-all active:scale-95"
+                      onClick={handleEditProfile}
+                    >
+                      Edit profile
+                    </Button>
+                  ) : (
+                    <Button 
+                      className={cn(
+                        "rounded-full font-bold px-8 py-2 transition-all active:scale-95 shadow-md hover:shadow-lg",
+                        isFollowing ? "bg-muted text-foreground hover:bg-destructive hover:text-destructive-foreground" : "bg-primary text-primary-foreground"
+                      )}
+                      onClick={handleFollowToggle}
+                    >
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </Button>
+                  )}
+                </div>
               </div>
-              
-              <div className="mt-[4.5rem] sm:mt-[5.5rem]">
-                {isOwnProfile ? (
-                  <Button 
-                    variant="outline" 
-                    className="rounded-full font-bold border px-5 py-2 hover:bg-muted/50 transition-colors"
-                    onClick={() => setIsEditModalOpen(true)}
-                  >
-                    Edit profile
-                  </Button>
-                ) : (
-                  <Button 
-                    className={cn(
-                      "rounded-full font-bold px-5 py-2 transition-colors",
-                      isFollowing || profile.followStatus === 'PENDING'
-                        ? "bg-transparent border border-border text-foreground hover:border-red-500 hover:text-red-500" 
-                        : "bg-primary text-primary-foreground"
-                    )}
-                    onClick={handleFollowToggle}
-                  >
-                    {isFollowing ? 'Unfollow' : profile.followStatus === 'PENDING' ? 'Requested' : 'Follow'}
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            <div className="flex flex-col items-start space-y-3 mt-2">
-              <div>
-                <h1 className="text-2xl font-black">{profile.name || profile.username}</h1>
-                <p className="text-muted-foreground">@{profile.username}</p>
-              </div>
-              
-              {profile.bio && <p className="text-base max-w-2xl">{profile.bio}</p>}
-              
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-muted-foreground text-sm">
-                {profile.location && <div className="flex items-center gap-1"><MapPin className="w-4 h-4" /><span>{profile.location}</span></div>}
-                {profile.createdAt && <div className="flex items-center gap-1"><Calendar className="w-4 h-4" /><span>Joined {new Date(profile.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span></div>}
-              </div>
-              
-              <div className="flex gap-4 mt-2 text-sm">
-                <span><strong className="text-foreground">{profile.followingCount || 0}</strong> Following</span>
-                <span><strong className="text-foreground">{profile.followersCount || 0}</strong> Followers</span>
+              <div className="space-y-4">
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight text-foreground">{profile.name || profile.username}</h1>
+                  <p className="text-muted-foreground font-medium">@{profile.username}</p>
+                </div>
+                
+                {profile.bio && (
+                  <p className="text-base text-foreground/90 leading-relaxed max-w-2xl bg-muted/30 p-4 rounded-2xl border border-border/5">
+                    {profile.bio}
+                  </p>
+                )}
+                
+                <div className="flex flex-wrap gap-x-6 gap-y-3 text-muted-foreground text-sm font-medium">
+                  {profile.location && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 rounded-full border border-border/10">
+                      <MapPin className="w-4 h-4 text-primary/70" />
+                      <span>{profile.location}</span>
+                    </div>
+                  )}
+                  {profile.website && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 rounded-full border border-border/10">
+                      <LinkIcon className="w-4 h-4 text-primary/70" />
+                      <a 
+                        href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary hover:underline"
+                      >
+                        {profile.website.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  )}
+                  {profile.createdAt && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 rounded-full border border-border/10">
+                      <Calendar className="w-4 h-4 text-primary/70" />
+                      <span>Joined {new Date(profile.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Stats counts: Following & Followers */}
+                <div className="flex gap-8 pt-2">
+                  <button 
+                    onClick={handleOpenFollowing}
+                    className="hover:bg-primary/5 px-4 py-2 -mx-4 rounded-xl transition-all group flex items-center gap-2"
+                  >
+                    <span className="text-xl font-black text-foreground">{profile.followingCount || 0}</span> 
+                    <span className="text-muted-foreground font-medium group-hover:text-primary transition-colors">Following</span>
+                  </button>
+                  <button 
+                    onClick={handleOpenFollowers}
+                    className="hover:bg-primary/5 px-4 py-2 -mx-4 rounded-xl transition-all group flex items-center gap-2"
+                  >
+                    <span className="text-xl font-black text-foreground">{profile.followersCount || 0}</span> 
+                    <span className="text-muted-foreground font-medium group-hover:text-primary transition-colors">Followers</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex border-b border-border mt-2">
-          {(isOwnProfile ? ['posts', 'replies', 'archived', 'likes'] : ['posts', 'replies', 'likes']).map((tab) => (
-            <div
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "px-6 py-4 font-medium transition-all relative cursor-pointer hover:bg-muted/30 capitalize",
-                activeTab === tab ? "text-foreground" : "text-muted-foreground"
-              )}
-            >
-              {tab}
-              {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full mx-4" />
-              )}
-            </div>
-          ))}
+        {/* Tabs Navigation (Centered Pill) */}
+        <div className="flex items-center justify-center border-b border-border/50 mt-8 mb-4 sticky top-[64px] bg-background/80 backdrop-blur-xl z-20 px-4">
+          <div className="flex items-center gap-1 bg-muted/20 p-1 rounded-full border border-border/10 my-2 shadow-inner">
+            {(isOwnProfile ? ['posts', 'replies', 'archived', 'likes'] : ['posts', 'replies', 'likes']).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 capitalize min-w-[100px]",
+                  activeTab === tab 
+                    ? "bg-card text-primary shadow-md ring-1 ring-border/50 scale-105" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-6 mt-6 pb-20 px-4">
+        {/* Profile Content: List of Posts */}
+        <div className="flex flex-col items-center gap-[12px] mt-6 pb-20">
           {profile.isPrivateView ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-3xl border border-dashed text-center">
-               <Lock className="w-12 h-12 text-muted-foreground mb-4" />
-               <h3 className="text-xl font-bold">These posts are protected</h3>
-               <p className="text-muted-foreground">Only approved followers can see @{profile.username}'s posts.</p>
+            <div className="w-full max-w-2xl px-4">
+              <div className="flex flex-col items-center justify-center py-24 bg-card/30 rounded-[2.5rem] border border-dashed border-border/60 text-center backdrop-blur-sm">
+                 <Lock className="w-16 h-16 text-muted-foreground/40 mb-6" />
+                 <h3 className="text-2xl font-black">These posts are protected</h3>
+                 <p className="text-muted-foreground/80 font-medium mt-2">Only approved followers can see @{profile.username}'s posts.</p>
+              </div>
             </div>
           ) : (loadingLikes && activeTab === 'likes') || (loadingArchived && activeTab === 'archived') ? (
-            <PostSkeleton />
+            <div className="w-full max-w-2xl">
+              <PostSkeleton />
+            </div>
           ) : displayList.length === 0 ? (
             <EmptyState
               icon={<MessageSquare className="w-12 h-12" />}
@@ -408,45 +482,47 @@ export function ProfilePage() {
               const isRepost = !!post.repostOf;
               const displayPost = isRepost ? post.repostOf : post;
               return (
-                <SocialCard 
-                  key={post._id || post.id}
-                  id={isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id)}
-                  author={{
-                    name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
-                    username: displayPost.author?.username || 'unknown',
-                    avatar: displayPost.author?.avatar || 'https://github.com/shadcn.png',
-                    timeAgo: displayPost.createdAt ? getTimeAgo(displayPost.createdAt) : 'Just now',
-                  }}
-                  content={{
-                    text: displayPost.content || displayPost.text || '',
-                    media: displayPost.media ? (Array.isArray(displayPost.media) ? displayPost.media : [displayPost.media]) : [],
-                  }}
-                  engagement={{
-                    likes: displayPost.likeCount || 0,
-                    comments: displayPost.commentCount || 0,
-                    shares: displayPost.repostCount || 0,
-                    isLiked: displayPost.isLiked || false,
-                    isBookmarked: displayPost.isBookmarked || false,
-                  }}
-                  repostedBy={isRepost ? post.author : null}
-                  permissions={isOwnProfile ? post.permissions : displayPost.permissions}
-                  onLike={() => handleLike(displayPost._id || displayPost.id, displayPost.isLiked)}
-                  onComment={() => handleAction(displayPost._id || displayPost.id, 'commented')}
-                  onShare={() => handleAction(displayPost._id || displayPost.id, 'shared')}
-                  onBookmark={() => handleAction(displayPost._id || displayPost.id, 'bookmarked')}
-                  isArchived={activeTab === 'archived' || post.isArchived}
-                  onMore={(action) => handleAction(
-                    isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id), 
-                    action, 
-                    isOwnProfile ? (post.author?._id || post.author) : (displayPost.author?._id || displayPost.author)
-                  )}
-                  className="max-w-2xl mx-auto"
-                >
-                    <PostComments 
-                        postId={displayPost._id || displayPost.id} 
-                        newComment={recentComments[displayPost._id || displayPost.id]}
-                     />
-                </SocialCard>
+                <div key={post._id || post.id} className="w-full max-w-2xl">
+                  <SocialCard 
+                    id={isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id)}
+                    className="mx-0" // Remove relative margins as wrapper handles centering
+                    author={{
+                      _id: displayPost.author?._id || displayPost.author?.id,
+                      name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
+                      username: displayPost.author?.username || 'unknown',
+                      avatar: displayPost.author?.avatar || 'https://github.com/shadcn.png',
+                      timeAgo: displayPost.createdAt ? getTimeAgo(displayPost.createdAt) : 'Just now',
+                    }}
+                    content={{
+                      text: displayPost.content || displayPost.text || '',
+                      media: displayPost.media ? (Array.isArray(displayPost.media) ? displayPost.media : [displayPost.media]) : [],
+                    }}
+                    engagement={{
+                      likes: displayPost.likeCount || 0,
+                      comments: displayPost.commentCount || 0,
+                      shares: displayPost.repostCount || 0,
+                      isLiked: displayPost.isLiked || false,
+                      isBookmarked: displayPost.isBookmarked || false,
+                    }}
+                    repostedBy={isRepost ? post.author : null}
+                    permissions={isOwnProfile ? post.permissions : displayPost.permissions}
+                    onLike={() => handleLike(displayPost._id || displayPost.id, displayPost.isLiked)}
+                    onComment={() => handleAction(displayPost._id || displayPost.id, 'commented')}
+                    onShare={() => handleAction(displayPost._id || displayPost.id, 'shared')}
+                    onBookmark={() => handleAction(displayPost._id || displayPost.id, 'bookmarked')}
+                    isArchived={activeTab === 'archived' || post.isArchived}
+                    onMore={(action) => handleAction(
+                      isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id), 
+                      action, 
+                      isOwnProfile ? (post.author?._id || post.author) : (displayPost.author?._id || displayPost.author)
+                    )}
+                  >
+                      <PostComments 
+                          postId={displayPost._id || displayPost.id} 
+                          newComment={recentComments[displayPost._id || displayPost.id]}
+                       />
+                  </SocialCard>
+                </div>
               );
             })
           )}
@@ -505,6 +581,14 @@ export function ProfilePage() {
         onOpenChange={(open) => !open && setReplyingTo(null)}
         onSubmit={handleReplySubmit}
         loading={replying}
+      />
+
+      <FollowListModal 
+        isOpen={isFollowListOpen}
+        onClose={() => setIsFollowListOpen(false)}
+        userId={id === 'me' ? (currentUser?._id || currentUser?.id) : id}
+        type={followListType}
+        title={followListType === 'followers' ? 'Followers' : 'Following'}
       />
     </>
   );

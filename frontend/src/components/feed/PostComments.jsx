@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { postService } from '@/services/post.service';
 import { Button } from '@/components/ui/button'; // Assuming Button component exists or use standard button
 import { Loader2 } from 'lucide-react';
@@ -90,15 +91,19 @@ export function PostComments({ postId, newComment }) {
         ) : (
             <div className="space-y-4">
                 {displayedComments.map(comment => (
-                <div key={comment._id} className="flex gap-3">
-                    <img 
-                        src={comment.author?.avatar || "https://github.com/shadcn.png"} 
-                        alt={comment.author?.username} 
-                        className="w-8 h-8 rounded-full flex-shrink-0"
-                    />
+                <div key={comment._id} className="flex gap-3 group/comment-item">
+                    <Link to={`/profile/${comment.author?._id || comment.author?.id}`} className="shrink-0 group/comment-author">
+                      <img 
+                          src={comment.author?.avatar || "https://github.com/shadcn.png"} 
+                          alt={comment.author?.username} 
+                          className="w-8 h-8 rounded-full object-cover transition-opacity group-hover/comment-author:opacity-80"
+                      />
+                    </Link>
                     <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">{comment.author?.name}</span>
+                            <Link to={`/profile/${comment.author?._id || comment.author?.id}`} className="text-sm font-semibold text-foreground hover:underline">
+                              {comment.author?.name}
+                            </Link>
                             <span className="text-xs text-muted-foreground">
                                 {formatRelativeTime(comment.createdAt)}
                             </span>

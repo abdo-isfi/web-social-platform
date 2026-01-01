@@ -1,45 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
-import { userService } from '@/services/user.service';
-import { followerService } from '@/services/follower.service';
+import { fetchSuggestions, followUser } from '@/store/slices/userSlice';
 import { Link } from 'react-router-dom';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export function RightSidebar() {
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const requireAuth = useAuthGuard();
+  const { suggestions, loading } = useSelector(state => state.user);
   const { isAuthenticated } = useSelector(state => state.auth);
 
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      // Only fetch if user is authenticated
-      if (!isAuthenticated) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const data = await userService.getSuggestions();
-        // Backend returns array of users directly after interceptor unwraps it
-        setSuggestions(Array.isArray(data) ? data : []); 
-      } catch (error) {
-        console.error("Failed to load suggestions", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchSuggestions();
-  }, [isAuthenticated]);
-
-  const handleFollow = async (userId) => {
-    try {
-      await followerService.followUser(userId);
-      // Optimistically remove from suggestions
-      setSuggestions(prev => prev.filter(user => user._id !== userId));
-    } catch (error) {
-      console.error("Failed to follow user", error);
+    if (isAuthenticated && suggestions.length === 0) {
+      dispatch(fetchSuggestions());
     }
+  }, [isAuthenticated, dispatch, suggestions.length]);
+
+  const handleFollow = (userId) => {
+    requireAuth(() => {
+      dispatch(followUser(userId));
+    }, 'login');
   };
 
   const trends = [
@@ -49,7 +30,7 @@ export function RightSidebar() {
   ];
 
   return (
-    <div className="hidden xl:flex flex-col h-[calc(100vh-64px)] sticky top-16 w-[290px] shrink-0 pt-6 pb-8 px-4 border-l border-border/40 gap-8 overflow-y-auto scrollbar-hide">
+    <div className="flex flex-col w-[290px] shrink-0 pt-0 pb-8 px-4 gap-8">
       
       {/* Search */}
       <div className="relative">
@@ -61,50 +42,55 @@ export function RightSidebar() {
       </div>
 
       {/* Suggested Users - Real Data */}
-      <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-        <h3 className="font-bold text-lg mb-4">Who to follow</h3>
-        <div className="flex flex-col gap-4">
+      <div className="bg-card rounded-[2rem] p-6 border border-border/50 shadow-sm">
+        <h3 className="font-bold text-lg mb-5 text-foreground leading-none">
+          Who to follow
+        </h3>
+        <div className="flex flex-col gap-5">
           {loading ? (
-             <p className="text-sm text-muted-foreground">Loading...</p>
+             <p className="text-sm text-muted-foreground animate-pulse">Loading suggestions...</p>
           ) : suggestions.length > 0 ? (
             suggestions.map(user => (
-              <div key={user._id} className="flex items-center justify-between">
-                <Link to={`/profile/${user._id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div key={user._id} className="flex items-center justify-between gap-3 group/item">
+                <Link 
+                  to={`/profile/${user._id || user.id}`} 
+                  className="flex items-center gap-3 hover:opacity-80 transition-all flex-1 min-w-0"
+                >
                   <img 
                     src={user.avatar || "https://github.com/shadcn.png"} 
                     alt={user.username} 
-                    className="w-10 h-10 rounded-full object-cover" 
+                    className="w-10 h-10 rounded-full object-cover border-2 border-background shadow-sm" 
                   />
-                  <div className="text-sm">
-                    <p className="font-semibold">{user.username}</p>
-                    <p className="text-muted-foreground">@{user.username}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[14px] text-foreground truncate">{user.name || user.username}</p>
+                    <p className="text-muted-foreground text-xs truncate">@{user.username}</p>
                   </div>
                 </Link>
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  className="rounded-full h-8"
-                  onClick={() => handleFollow(user._id)}
+                  className="rounded-full h-8 px-4 font-bold text-xs hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shrink-0"
+                  onClick={() => handleFollow(user._id || user.id)}
                 >
                   Follow
                 </Button>
               </div>
             ))
           ) : (
-             <p className="text-sm text-muted-foreground">No suggestions available.</p>
+             <p className="text-sm text-muted-foreground italic">No suggestions available.</p>
           )}
         </div>
       </div>
 
       {/* Trending (Static for now as no backend support) */}
-      <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-        <h3 className="font-bold text-lg mb-4">Trending for you</h3>
-        <div className="flex flex-col gap-4">
+      <div className="bg-card rounded-[2rem] p-6 border border-border/50 shadow-sm">
+        <h3 className="font-bold text-lg mb-5 text-foreground">Trending</h3>
+        <div className="flex flex-col gap-2">
           {trends.map(trend => (
-            <div key={trend.id} className="cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 -mx-2 rounded-xl transition-colors">
-              <p className="text-sm text-muted-foreground">Trending in {trend.topic}</p>
-              <p className="font-bold">{trend.topic}</p>
-              <p className="text-xs text-muted-foreground">{trend.posts}</p>
+            <div key={trend.id} className="cursor-pointer hover:bg-muted/50 p-3 -mx-2 rounded-2xl transition-all duration-200 group">
+              <p className="text-xs text-muted-foreground font-medium mb-1">Trending in {trend.topic}</p>
+              <p className="font-bold text-foreground group-hover:text-primary transition-colors">{trend.topic}</p>
+              <p className="text-xs text-muted-foreground mt-1">{trend.posts}</p>
             </div>
           ))}
         </div>

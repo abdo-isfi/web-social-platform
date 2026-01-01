@@ -6,6 +6,7 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { BookmarksPage } from '@/pages/BookmarksPage';
 import { ArchivedPostsPage } from '@/pages/ArchivedPostsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { useSelector, useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
 import socketService from '@/services/socket';
@@ -112,6 +113,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ArchivedPostsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/notifications" 
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
             </ProtectedRoute>
           } 
         />

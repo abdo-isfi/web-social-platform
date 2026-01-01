@@ -3,6 +3,7 @@ const Thread = require("../models/thread.model");
 const Like = require("../models/like.model");
 const Notification = require('../models/notification.model');
 const { emitToUser } = require('../socket');
+const { populateNotification } = require('../utils/notificationHelper');
 const responseHandler = require("../utils/responseHandler");
 const { statusCodes } = require("../utils/statusCodes");
 
@@ -20,7 +21,7 @@ const getComments = async (req, res) => {
 
     let queryBuilder = Comment.find(query)
       .sort({ createdAt: 1 })
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     if (!cursor && page > 1) {
@@ -84,7 +85,7 @@ const createComment = async (req, res) => {
     });
 
     const populatedComment = await Comment.findById(comment._id)
-      .populate('author', 'username name avatar avatarType')
+      .populate('author', '_id username name avatar avatarType')
       .lean();
 
     // Notification
@@ -97,7 +98,8 @@ const createComment = async (req, res) => {
             comment: comment._id,
             isRead: false
         });
-        emitToUser(parentThread.author, 'notification:new', notif);
+        const populatedNotif = await populateNotification(notif._id);
+        emitToUser(parentThread.author, 'notification:new', populatedNotif || notif);
     }
 
     return responseHandler.success(res, populatedComment, "Comment added", statusCodes.CREATED);

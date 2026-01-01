@@ -3,9 +3,11 @@ import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Image, Video, X, Smile } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export function CreatePost({ onPost }) {
   const { user } = useSelector(state => state.auth);
+  const requireAuth = useAuthGuard();
   const [content, setContent] = useState('');
   const [media, setMedia] = useState([]);
   const fileInputRef = useRef(null);
@@ -51,21 +53,27 @@ export function CreatePost({ onPost }) {
   const isDisabled = !content.trim() && media.length === 0;
 
   return (
-    <div className="bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 rounded-3xl p-4 shadow-sm mb-6 transition-all hover:border-white/20">
-      <div className="flex gap-4">
-        <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex-shrink-0">
-           <img 
-             src={user?.avatar || "https://github.com/shadcn.png"} 
-             alt="User" 
-             className="w-full h-full object-cover"
-           />
-        </div>
+    <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm transition-all hover:border-primary/20 group mx-2 md:mx-4">
+      <div className="flex gap-5">
+         <div className="w-12 h-12 rounded-full ring-2 ring-primary/10 overflow-hidden flex-shrink-0 transition-all group-hover:ring-primary/30">
+            <img 
+              src={user?.avatar || "https://github.com/shadcn.png"} 
+              alt="User" 
+              className="w-full h-full object-cover"
+            />
+         </div>
         <div className="flex-1">
           <textarea 
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onFocus={(e) => {
+              requireAuth(() => {}, 'login');
+              // If focused by guest, they will be redirected to login modal, 
+              // but we might want to blur it to prevent typing before modal opens if needed.
+              // requireAuth doesn't block the action if it's just a focus, but triggers the modal.
+            }}
             placeholder="What is happening?!" 
-            className="w-full bg-transparent border-none text-lg text-foreground focus:ring-0 placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
+            className="w-full bg-transparent border-none text-lg text-foreground focus:ring-0 focus:outline-none outline-none placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
             rows={Math.max(2, content.split('\n').length)}
             spellCheck="false"
             data-gramm="false"
@@ -94,22 +102,29 @@ export function CreatePost({ onPost }) {
         </div>
       </div>
 
-      <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
-        <div className="flex gap-2 text-primary">
+      <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/10">
+        <div className="flex gap-1 text-primary">
           <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-muted rounded-full text-primary transition-colors"
+            onClick={() => requireAuth(() => fileInputRef.current?.click())}
+            className="p-2.5 hover:bg-primary/10 rounded-full text-primary transition-all duration-200 active:scale-90"
             title="Add Photo"
           >
             <Image className="w-5 h-5" />
           </button>
           <button 
-            onClick={() => videoInputRef.current?.click()}
-            className="p-2 hover:bg-muted rounded-full text-primary transition-colors"
+            onClick={() => requireAuth(() => videoInputRef.current?.click())}
+            className="p-2.5 hover:bg-primary/10 rounded-full text-primary transition-all duration-200 active:scale-90"
             title="Add Video"
           >
             <Video className="w-5 h-5" />
           </button>
+          <button 
+            className="p-2.5 hover:bg-primary/10 rounded-full text-primary transition-all duration-200 active:scale-90"
+            title="Add Emoji"
+          >
+            <Smile className="w-5 h-5" />
+          </button>
+          
           {/* Hidden Inputs */}
           <input 
             type="file" 
@@ -127,11 +142,11 @@ export function CreatePost({ onPost }) {
             onChange={(e) => handleMediaUpload(e, 'video')}
           />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
            {content.length > 0 && (
              <span className={cn(
-               "text-xs font-medium",
-               content.length > 280 ? "text-red-500" : "text-muted-foreground"
+               "text-xs font-bold",
+               content.length > 280 ? "text-destructive" : "text-muted-foreground/60"
              )}>
                {content.length} / 280
              </span>
@@ -139,7 +154,7 @@ export function CreatePost({ onPost }) {
            <Button 
              onClick={handleSubmit} 
              disabled={isDisabled}
-             className="rounded-full font-bold px-6"
+             className="rounded-full font-black px-8 py-6 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
            >
              Post
            </Button>
