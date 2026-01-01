@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { postService } from '@/services/post.service';
 import { Button } from '@/components/ui/button'; // Assuming Button component exists or use standard button
 import { Loader2 } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 export function PostComments({ postId, newComment }) {
   const [comments, setComments] = useState([]);
@@ -20,7 +20,7 @@ export function PostComments({ postId, newComment }) {
 
   // Handle new incoming comment (optimistic or actual from parent)
   useEffect(() => {
-    if (newComment && String(newComment.parentThread) === String(postId)) {
+    if (newComment && String(newComment.thread) === String(postId)) {
       setComments(prev => {
         // Avoid duplicates if necessary, though simple append is usually fine for "new"
         if (prev.find(c => c._id === newComment._id)) return prev;
@@ -100,7 +100,7 @@ export function PostComments({ postId, newComment }) {
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-foreground">{comment.author?.name}</span>
                             <span className="text-xs text-muted-foreground">
-                                {new Date(comment.createdAt).toLocaleDateString()}
+                                {formatRelativeTime(comment.createdAt)}
                             </span>
                         </div>
                         <p className="text-sm text-foreground">{comment.content}</p>

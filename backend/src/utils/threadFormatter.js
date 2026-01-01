@@ -1,5 +1,6 @@
 const Like = require("../models/like.model");
 const Follow = require("../models/follower.model");
+const Comment = require("../models/comment.model");
 const Thread = require("../models/thread.model");
 
 /**
@@ -59,7 +60,7 @@ const formatThreadResponse = async (thread, userId) => {
 
     const likeCount = await Like.countDocuments({ thread: thread._id });
     const repostCount = await Thread.countDocuments({ repostOf: thread._id });
-    const commentCount = await Thread.countDocuments({ parentThread: thread._id, isArchived: false });
+    const commentCount = await Comment.countDocuments({ thread: thread._id });
     
     let isLiked = false;
     let isReposted = false;
