@@ -26,6 +26,10 @@ export const postService = {
     return await api.patch(`/thread/archive/${postId}`);
   },
 
+  unarchivePost: async (postId) => {
+      return await api.patch(`/thread/unarchive/${postId}`);
+  },
+
   // Like post
   likePost: async (threadId) => {
     return await api.post(`/like/${threadId}/like`);

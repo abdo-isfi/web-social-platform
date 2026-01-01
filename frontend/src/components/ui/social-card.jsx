@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Link2, Flag, Archive, Trash2, Copy, Check, UserPlus, UserMinus, Edit3 } from "lucide-react";
+import { Link2, Flag, Archive, Trash2, Copy, Check, UserPlus, UserMinus, Edit3, ArchiveRestore } from "lucide-react";
 
 export function SocialCard({
   id,
@@ -27,7 +27,8 @@ export function SocialCard({
   className,
   children,
   repostedBy, // New prop: { name, username }
-  permissions // New prop: { isOwner, isFollowingAuthor, canFollow, canDelete, etc. }
+  permissions, // New prop: { isOwner, isFollowingAuthor, canFollow, canDelete, etc. }
+  isArchived = false // New prop to determine archive status
 }) {
   const [isLiked, setIsLiked] = useState(engagement?.isLiked ?? false);
   const [isBookmarked, setIsBookmarked] = useState(engagement?.isBookmarked ?? false);
@@ -130,11 +131,11 @@ export function SocialCard({
                         </button>
                       )}
                       <button 
-                        onClick={() => onMore("archive")}
+                        onClick={() => onMore(isArchived ? "unarchive" : "archive")}
                         className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors w-full text-left font-medium"
                       >
-                        <Archive className="w-4 h-4 text-muted-foreground" />
-                        <span>Archive</span>
+                        {isArchived ? <ArchiveRestore className="w-4 h-4 text-muted-foreground" /> : <Archive className="w-4 h-4 text-muted-foreground" />}
+                        <span>{isArchived ? "Unarchive" : "Archive"}</span>
                       </button>
                       
                       {permissions.canDelete && (

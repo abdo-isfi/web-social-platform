@@ -59,7 +59,9 @@ export function AuthModal() {
     register: loginRegister, 
     handleSubmit: handleLoginSubmit, 
     formState: { errors: loginErrors },
-    reset: resetLogin
+
+    reset: resetLogin,
+    setError: loginSetError
   } = useForm({
     resolver: yupResolver(loginSchema),
   });
@@ -69,7 +71,9 @@ export function AuthModal() {
     register: signupRegister, 
     handleSubmit: handleSignupSubmit, 
     formState: { errors: signupErrors },
-    reset: resetSignup
+
+    reset: resetSignup,
+    setError: signupSetError
   } = useForm({
     resolver: yupResolver(registerSchema),
   });
@@ -82,6 +86,36 @@ export function AuthModal() {
       dispatch(clearError());
     }
   }, [isAuthModalOpen, resetLogin, resetSignup, dispatch]);
+
+  // Handle Server Errors by mapping them to fields
+  useEffect(() => {
+    if (error) {
+       const errString = typeof error === 'string' ? error.toLowerCase() : '';
+       let consumed = false;
+
+       if (isLoginView) {
+          if (errString.includes('password')) {
+             loginSetError('password', { type: 'custom', message: error });
+             consumed = true;
+          } else if (errString.includes('user') || errString.includes('email') || errString.includes('credentials') || errString.includes('not found')) {
+             loginSetError('email', { type: 'custom', message: error });
+             consumed = true;
+          }
+       } else {
+          // Signup logic
+          if (errString.includes('email') || errString.includes('exists')) {
+             signupSetError('email', { type: 'custom', message: error });
+             consumed = true;
+          }
+       }
+
+       // Only clear global error if we successfully mapped it to a field
+       // This prevents the toast from showing if we are showing inline error
+       if (consumed) {
+           dispatch(clearError());
+       }
+    }
+  }, [error, isLoginView, loginSetError, signupSetError, dispatch]);
 
   const onLogin = (data) => {
     dispatch(clearError());

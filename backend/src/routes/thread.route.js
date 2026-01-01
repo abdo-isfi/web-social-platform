@@ -23,6 +23,7 @@ router.get('/me/:threadId', authMiddleware, createThread.getThreadById);
 router.patch('/me/:threadId', authMiddleware, mediaUpload.single('media'), createThread.updateThread);
 router.delete('/me/:threadId', authMiddleware, createThread.deleteThread);
 router.patch('/archive/:threadId', authMiddleware, createThread.archiveThread);
+router.patch('/unarchive/:threadId', authMiddleware, createThread.unarchiveThread);
 
 // Repost
 router.post('/:threadId/repost', authMiddleware, createThread.repostThread);

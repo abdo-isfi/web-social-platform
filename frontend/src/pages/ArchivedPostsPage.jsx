@@ -58,6 +58,9 @@ export function ArchivedPostsPage() {
          dispatch(bookmarkPost(id));
       } else if (action === 'delete') {
          setDeletingPostId(id);
+      } else if (action === 'unarchive') {
+         await postService.unarchivePost(id);
+         setPosts(posts.filter(p => p._id !== id));
       } else if (action === 'edit') {
          const post = posts.find(p => (p._id || p.id) === id);
          setEditingPost(post);
@@ -156,7 +159,9 @@ export function ArchivedPostsPage() {
               onComment={() => handleAction(post._id || post.id, 'commented')}
               onShare={() => handleAction(post._id || post.id, 'shared')}
               onBookmark={() => handleAction(post._id || post.id, 'bookmarked')}
-              onMore={(action) => handleAction(post._id || post.id, action, post.author?._id)}>
+              onMore={(action) => handleAction(post._id || post.id, action, post.author?._id)}
+              isArchived={true}
+            >
                  <PostComments postId={post._id || post.id} newComment={recentComments[post._id || post.id]} />
             </SocialCard>
           ))}

@@ -67,6 +67,8 @@ export function CreatePost({ onPost }) {
             placeholder="What is happening?!" 
             className="w-full bg-transparent border-none text-lg text-foreground focus:ring-0 placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
             rows={Math.max(2, content.split('\n').length)}
+            spellCheck="false"
+            data-gramm="false"
           />
           
           {/* Media Previews */}

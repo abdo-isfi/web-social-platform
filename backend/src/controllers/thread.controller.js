@@ -1,4 +1,5 @@
 const Thread = require("../models/thread.model");
+const Comment = require("../models/comment.model");
 const User = require('../models/user.model');
 const Like=require("../models/like.model");
 const Follow = require('../models/follower.model'); // Added Follow model
@@ -245,7 +246,8 @@ const updateThread = async (req, res) => {
     const { threadId } = req.params;
 
     // Find the thread by ID and author
-    const thread = await Thread.findOne({ _id: threadId, author: userId,isArchived: false });
+    // Find the thread by ID and author
+    const thread = await Thread.findOne({ _id: threadId, author: userId });
     if (!thread) {
       return responseHandler.notFound(res, "Thread");
     }
@@ -366,6 +368,33 @@ const archiveThread = async (req, res) => {
 
   } catch (error) {
     console.error("Archive thread error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const unarchiveThread = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { threadId } = req.params;
+
+    const thread = await Thread.findOne({ _id: threadId, author: userId });
+    if (!thread) {
+      return responseHandler.notFound(res, "Thread");
+    }
+
+    thread.isArchived = false;
+    await thread.save();
+
+    return responseHandler.success(
+      res,
+      thread,
+      "Thread unarchived successfully",
+      statusCodes.UPDATED
+    );
+
+  } catch (error) {
+    console.error("Unarchive thread error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -397,10 +426,10 @@ const deleteThread = async (req, res) => {
     // Delete the thread
     await Thread.deleteOne({ _id: threadId });
 
-    // Also delete any child threads (comments/replies) could be good, but strict deletion might be safer for now.
-    // Or we can rely on cascading delete if implemented in model, but Mongoose middleware isn't always triggered by deleteOne.
-    // Ideally we should delete related comments.
-    // await Thread.deleteMany({ parentThread: threadId }); // Optional: cleanup comments
+    // Cleanup associated data
+    await Comment.deleteMany({ thread: threadId });
+    await Like.deleteMany({ thread: threadId });
+    await Notification.deleteMany({ thread: threadId });
 
     return responseHandler.success(
       res,
@@ -428,6 +457,7 @@ const getFeed = async (req, res) => {
         // Just the posts of followed users
         const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
         const followingIds = following.map(f => f.following);
+        followingIds.push(userId); // Include my own posts
         filter.author = { $in: followingIds };
     } else {
         // Discovery/Public mode: All posts from all users (not archived, not comments)
@@ -641,6 +671,7 @@ module.exports = {
   getThreadById,
   updateThread,
   archiveThread,
+  unarchiveThread,
   deleteThread,
   getFeed,
   repostThread,

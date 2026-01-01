@@ -21,6 +21,11 @@ const notificationSchema = new mongoose.Schema({
     ref: 'Thread',
     default: null
   },
+  comment: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Comment',
+    default: null
+  },
   isRead: {
     type: Boolean,
     default: false

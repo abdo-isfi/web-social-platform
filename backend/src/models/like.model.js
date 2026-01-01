@@ -11,7 +11,12 @@ const likeSchema = new mongoose.Schema(
     thread: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Thread',
-      required: true,
+      required: false,
+    },
+    comment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      required: false,
     },
   },
   {
@@ -19,6 +24,6 @@ const likeSchema = new mongoose.Schema(
   }
 );
 
-likeSchema.index({ user: 1, thread: 1 }, { unique: true });
+likeSchema.index({ user: 1, thread: 1, comment: 1 }, { unique: true });
 
 module.exports = mongoose.model('Like', likeSchema);

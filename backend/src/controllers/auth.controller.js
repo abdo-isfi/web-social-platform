@@ -86,10 +86,10 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return responseHandler.unauthorized(res, 'Invalid credentials');
+    if (!user) return responseHandler.error(res, 'User not found', statusCodes.NOT_FOUND);
 
     const isMatch = await comparePassword(password, user.password);
-    if (!isMatch) return responseHandler.unauthorized(res, 'Invalid credentials');
+    if (!isMatch) return responseHandler.unauthorized(res, 'Invalid password');
 
     const { accessToken, refreshToken } = generateTokens(user);
 

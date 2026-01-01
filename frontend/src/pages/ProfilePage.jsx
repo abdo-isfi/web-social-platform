@@ -14,6 +14,8 @@ import { postService } from '@/services/post.service';
 import { cn } from '@/lib/utils';
 import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock } from 'lucide-react';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { PostComments } from '@/components/feed/PostComments';
+import { CommentDialog } from '@/components/feed/CommentDialog';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
@@ -33,6 +35,10 @@ export function ProfilePage() {
   const [loadingArchived, setLoadingArchived] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('posts');
+  
+  const [recentComments, setRecentComments] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replying, setReplying] = useState(false);
 
   const isOwnProfile = isAuthenticated && (id === 'me' || id === (currentUser?._id || currentUser?.id));
   const [isFollowing, setIsFollowing] = useState(false);
@@ -150,6 +156,45 @@ export function ProfilePage() {
       }
   }, [activeTab, profile, isOwnProfile]);
 
+  const handleReplySubmit = async (content) => {
+      if (!replyingTo) return;
+      setReplying(true);
+      try {
+          const response = await postService.addComment(replyingTo, content);
+          const comment = response.comment || response; 
+          
+          setRecentComments(prev => ({
+              ...prev,
+              [replyingTo]: comment
+          }));
+          
+          const updateList = (list) => list.map(p => {
+              if ((p._id || p.id) === replyingTo) {
+                  return { ...p, commentCount: (p.commentCount || 0) + 1 };
+              }
+              if (p.repostOf && (p.repostOf._id || p.repostOf.id) === replyingTo) {
+                  return { 
+                      ...p, 
+                      repostOf: { 
+                          ...p.repostOf, 
+                          commentCount: (p.repostOf.commentCount || 0) + 1 
+                      }
+                  };
+              }
+              return p;
+          });
+          setPosts(prev => updateList(prev));
+          setLikedPosts(prev => updateList(prev));
+          setArchivedPosts(prev => updateList(prev));
+          
+          setReplyingTo(null);
+      } catch (error) {
+          console.error("Failed to reply", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
   const handleLike = async (postId, currentlyLiked) => {
     requireAuth(async () => {
       try {
@@ -204,13 +249,21 @@ export function ProfilePage() {
             if (isOwnProfile) {
               setProfile(prev => ({ ...prev, postsCount: Math.max(0, (prev.postsCount || 0) - 1) }));
             }
+        } else if (action === 'unarchive') {
+            await postService.unarchivePost(postId);
+            setArchivedPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+            
+            if (isOwnProfile) {
+               setProfile(prev => ({ ...prev, postsCount: (prev.postsCount || 0) + 1 }));
+            }
         } else if (action === 'edit') {
             const post = posts.find(p => (p._id || p.id) === postId) || likedPosts.find(p => (p._id || p.id) === postId) || archivedPosts.find(p => (p._id || p.id) === postId);
             setEditingPost(post);
-        } else if (action === 'follow' || action === 'unfollow') {
             if (action === 'follow') await followerService.followUser(authorId);
             else await followerService.unfollowUser(authorId);
             fetchProfileData();
+        } else if (action === 'commented') {
+            setReplyingTo(postId);
         }
     });
   };
@@ -381,13 +434,19 @@ export function ProfilePage() {
                   onComment={() => handleAction(displayPost._id || displayPost.id, 'commented')}
                   onShare={() => handleAction(displayPost._id || displayPost.id, 'shared')}
                   onBookmark={() => handleAction(displayPost._id || displayPost.id, 'bookmarked')}
+                  isArchived={activeTab === 'archived' || post.isArchived}
                   onMore={(action) => handleAction(
                     isOwnProfile ? (post._id || post.id) : (displayPost._id || displayPost.id), 
                     action, 
                     isOwnProfile ? (post.author?._id || post.author) : (displayPost.author?._id || displayPost.author)
                   )}
                   className="max-w-2xl mx-auto"
-                />
+                >
+                    <PostComments 
+                        postId={displayPost._id || displayPost.id} 
+                        newComment={recentComments[displayPost._id || displayPost.id]}
+                     />
+                </SocialCard>
               );
             })
           )}
@@ -439,6 +498,13 @@ export function ProfilePage() {
                  setDeletingPostId(null);
              }
         }}
+      />
+      
+      <CommentDialog 
+        open={!!replyingTo} 
+        onOpenChange={(open) => !open && setReplyingTo(null)}
+        onSubmit={handleReplySubmit}
+        loading={replying}
       />
     </>
   );
