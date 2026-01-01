@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
+import { EditPostModal } from '@/components/modals/EditPostModal';
+import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SocialCard } from '@/components/ui/social-card';
@@ -15,16 +17,20 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
-  const { requireAuth } = useAuthGuard();
+  const requireAuth = useAuthGuard();
   const { id } = useParams();
   const { user: currentUser, isAuthenticated } = useSelector(state => state.auth);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
+  const [deletingPostId, setDeletingPostId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
+  const [archivedPosts, setArchivedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [loadingArchived, setLoadingArchived] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('posts');
 
@@ -85,6 +91,18 @@ export function ProfilePage() {
     }
   };
 
+  const fetchArchivedPosts = async () => {
+    try {
+        setLoadingArchived(true);
+        const response = await postService.getArchivedPosts(1, 40);
+        setArchivedPosts(response.threads || response || []);
+    } catch (error) {
+        console.error("Failed to fetch archived posts", error);
+    } finally {
+        setLoadingArchived(false);
+    }
+  };
+
   const fetchProfileData = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -127,7 +145,10 @@ export function ProfilePage() {
       if (activeTab === 'likes' && likedPosts.length === 0 && profile && !profile.isPrivateView) {
           fetchLikedPosts();
       }
-  }, [activeTab, profile]);
+      if (activeTab === 'archived' && archivedPosts.length === 0 && isOwnProfile) {
+          fetchArchivedPosts();
+      }
+  }, [activeTab, profile, isOwnProfile]);
 
   const handleLike = async (postId, currentlyLiked) => {
     requireAuth(async () => {
@@ -171,15 +192,21 @@ export function ProfilePage() {
             });
             setPosts(prev => updateList(prev));
             setLikedPosts(prev => updateList(prev));
-        } else if (action === 'delete' || action === 'archive') {
-            if (action === 'delete') await postService.deletePost(postId);
-            else await postService.archivePost(postId);
+        } else if (action === 'delete') {
+             setDeletingPostId(postId);
+        } else if (action === 'archive') {
+            await postService.archivePost(postId);
             
             setPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
             setLikedPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+            setArchivedPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+
             if (isOwnProfile) {
               setProfile(prev => ({ ...prev, postsCount: Math.max(0, (prev.postsCount || 0) - 1) }));
             }
+        } else if (action === 'edit') {
+            const post = posts.find(p => (p._id || p.id) === postId) || likedPosts.find(p => (p._id || p.id) === postId) || archivedPosts.find(p => (p._id || p.id) === postId);
+            setEditingPost(post);
         } else if (action === 'follow' || action === 'unfollow') {
             if (action === 'follow') await followerService.followUser(authorId);
             else await followerService.unfollowUser(authorId);
@@ -195,7 +222,7 @@ export function ProfilePage() {
     return false;
   });
 
-  const displayList = activeTab === 'likes' ? likedPosts : filteredPosts;
+  const displayList = activeTab === 'likes' ? likedPosts : activeTab === 'archived' ? archivedPosts : filteredPosts;
 
   if (loading) {
     return (
@@ -291,7 +318,7 @@ export function ProfilePage() {
         </div>
 
         <div className="flex border-b border-border mt-2">
-          {['posts', 'replies', 'likes'].map((tab) => (
+          {(isOwnProfile ? ['posts', 'replies', 'archived', 'likes'] : ['posts', 'replies', 'likes']).map((tab) => (
             <div
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -315,7 +342,7 @@ export function ProfilePage() {
                <h3 className="text-xl font-bold">These posts are protected</h3>
                <p className="text-muted-foreground">Only approved followers can see @{profile.username}'s posts.</p>
             </div>
-          ) : (loadingLikes && activeTab === 'likes') ? (
+          ) : (loadingLikes && activeTab === 'likes') || (loadingArchived && activeTab === 'archived') ? (
             <PostSkeleton />
           ) : displayList.length === 0 ? (
             <EmptyState
@@ -371,6 +398,47 @@ export function ProfilePage() {
         isOpen={isEditModalOpen} 
         onClose={() => setIsEditModalOpen(false)} 
         onSuccess={fetchProfileData}
+      />
+      
+      <EditPostModal
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        post={editingPost}
+        onSuccess={(updatedPost) => {
+            // Update local state
+            const updateList = (list) => list.map(p => {
+                if ((p._id || p.id) === (updatedPost._id || updatedPost.id)) return updatedPost;
+                if (p.repostOf && (p.repostOf._id || p.repostOf.id) === (updatedPost._id || updatedPost.id)) {
+                    return { ...p, repostOf: updatedPost };
+                }
+                return p;
+            });
+            setPosts(prev => updateList(prev));
+            setLikedPosts(prev => updateList(prev));
+            setArchivedPosts(prev => updateList(prev));
+        }}
+      />
+
+      <DeleteAlertModal 
+        isOpen={!!deletingPostId}
+        onClose={() => setDeletingPostId(null)}
+        onConfirm={async () => {
+             const postId = deletingPostId;
+             try {
+                await postService.deletePost(postId);
+                setPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+                setLikedPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+                setArchivedPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
+
+                if (isOwnProfile) {
+                  setProfile(prev => ({ ...prev, postsCount: Math.max(0, (prev.postsCount || 0) - 1) }));
+                }
+             } catch (err) {
+                 console.error("Failed to delete post", err);
+             } finally {
+                 setDeletingPostId(null);
+             }
+        }}
       />
     </>
   );

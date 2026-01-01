@@ -14,11 +14,9 @@ const authenticate = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, envVar.ACCESS_TOKEN_SECRET);
-    console.log("Token Payload:", payload); // Debug
     req.user = payload;
     next();
   } catch (err) {
-    console.error("JWT Verification Error:", err.message); // Debug
     return responseHandler.unauthorized(res, "Access token expired or invalid");
   }
 };

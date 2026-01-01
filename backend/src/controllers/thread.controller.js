@@ -156,9 +156,9 @@ const getUserThreads = async (req, res) => {
       .populate('author', 'username name avatar avatarType')
       .lean();
 
-    const formattedThreads = await Promise.all(
+    const formattedThreads = (await Promise.all(
         threads.map(thread => formatThreadResponse(thread, userId))
-    );
+    )).filter(thread => thread !== null);
 
     const totalPages = Math.ceil(totalThreads / limit);
 
@@ -174,6 +174,43 @@ const getUserThreads = async (req, res) => {
 
   } catch (error) {
     console.error('Get user threads error:', error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const getArchivedThreads = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page, limit } = req.pagination;
+    const skip = (page - 1) * limit;
+
+    const totalThreads = await Thread.countDocuments({ author: userId, isArchived: true });
+    
+    const threads = await Thread.find({ author: userId, isArchived: true })
+      .sort({ updatedAt: -1 }) // Sort by when they were archived
+      .skip(skip)
+      .limit(limit)
+      .populate('author', 'username name avatar avatarType')
+      .lean();
+
+    const formattedThreads = (await Promise.all(
+        threads.map(thread => formatThreadResponse(thread, userId))
+    )).filter(thread => thread !== null);
+
+    const totalPages = Math.ceil(totalThreads / limit);
+
+    return responseHandler.success(res, {
+      threads: formattedThreads,
+      pagination: {
+        totalThreads,
+        totalPages,
+        currentPage: page,
+        pageSize: limit,
+      },
+    }, 'Archived threads fetched successfully', statusCodes.SUCCESS);
+
+  } catch (error) {
+    console.error('Get archived threads error:', error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
@@ -329,14 +366,61 @@ const archiveThread = async (req, res) => {
 
   } catch (error) {
     console.error("Archive thread error:", error);
+  }
+};
+
+const deleteThread = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { threadId } = req.params;
+
+    // Find the thread by ID and author (only author can delete)
+    // We allow deleting archived threads too
+    const thread = await Thread.findOne({ _id: threadId, author: userId });
+    
+    if (!thread) {
+      return responseHandler.notFound(res, "Thread");
+    }
+
+    // Delete media from MinIO if it exists
+    if (thread.media && thread.media.key) {
+      try {
+        const { deleteFromMinIO } = require('../utils/minioHelper');
+        await deleteFromMinIO(thread.media.key);
+        console.log(`✓ Media deleted from MinIO: ${thread.media.key}`);
+      } catch (deleteError) {
+        console.warn(`⚠ Failed to delete media: ${deleteError.message}`);
+        // Continue with deletion logic
+      }
+    }
+
+    // Delete the thread
+    await Thread.deleteOne({ _id: threadId });
+
+    // Also delete any child threads (comments/replies) could be good, but strict deletion might be safer for now.
+    // Or we can rely on cascading delete if implemented in model, but Mongoose middleware isn't always triggered by deleteOne.
+    // Ideally we should delete related comments.
+    // await Thread.deleteMany({ parentThread: threadId }); // Optional: cleanup comments
+
+    return responseHandler.success(
+      res,
+      { _id: threadId },
+      "Thread deleted successfully",
+      statusCodes.SUCCESS
+    );
+
+  } catch (error) {
+    console.error("Delete thread error:", error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
+
 const getFeed = async (req, res) => {
   try {
     const userId = req.user?.id;
-    const { page, limit, mode } = req.query; // Expect mode to be 'following' or 'discover'
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { mode } = req.query; // Expect mode to be 'following' or 'discover'
+    const { page, limit } = req.pagination;
+    const skip = (page - 1) * limit;
 
     let filter = { isArchived: false, parentThread: null  };
 
@@ -365,7 +449,6 @@ const getFeed = async (req, res) => {
         }
     }
 
-    console.log("Feed Filter:", JSON.stringify(filter, null, 2));
     const threads = await Thread.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -376,12 +459,10 @@ const getFeed = async (req, res) => {
         populate: { path: 'author', select: 'username name avatar avatarType' }
       })
       .lean();
-    
-    console.log(`Found ${threads.length} threads for feed`);
 
-    const formattedThreads = await Promise.all(
+    const formattedThreads = (await Promise.all(
       threads.map(thread => formatThreadResponse(thread, userId))
-    );
+    )).filter(thread => thread !== null); // Filter out orphaned threads
 
     const totalThreads = await Thread.countDocuments(filter);
     const totalPages = Math.ceil(totalThreads / limit);
@@ -533,9 +614,9 @@ const getBookmarkedThreads = async (req, res) => {
     const orderedThreads = pagedBookmarkIds.map(id => threads.find(t => t._id.toString() === id.toString())).filter(Boolean);
 
     // Add like/bookmark status
-    const threadsWithStatus = await Promise.all(
+    const threadsWithStatus = (await Promise.all(
         orderedThreads.map(thread => formatThreadResponse(thread, userId))
-    );
+    )).filter(thread => thread !== null);
 
     return responseHandler.success(res, {
         threads: threadsWithStatus,
@@ -556,9 +637,11 @@ const getBookmarkedThreads = async (req, res) => {
 module.exports = {
   createThread,
   getUserThreads,
+  getArchivedThreads,
   getThreadById,
   updateThread,
   archiveThread,
+  deleteThread,
   getFeed,
   repostThread,
   unrepostThread,

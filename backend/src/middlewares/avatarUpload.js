@@ -1,21 +1,17 @@
 const multer = require("multer");
+const path = require("path");
 
 module.exports = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 },
   fileFilter: (req, file, cb) => {
-    console.log("Received file in filter:", file); 
-    console.log("Content-Type header:", req.headers['content-type']);
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
 
-    if (!file) {
-      return cb(new Error("No file received"));
+    if (mimetype && extname) {
+      return cb(null, true);
     }
-
-    if (!file.mimetype.startsWith("image/")) {
-      console.log("Rejected file type:", file.mimetype);
-      return cb(new Error("Only image files are allowed"));
-    }
-
-    cb(null, true);
+    cb(new Error("Only images (jpeg, jpg, png, webp) are allowed!"));
   }
 });

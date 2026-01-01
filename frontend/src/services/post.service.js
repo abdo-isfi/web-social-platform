@@ -60,5 +60,15 @@ export const postService = {
   getBookmarkedPosts: async (page = 1, limit = 10) => {
     return await api.get(`/thread/user/bookmarks?page=${page}&limit=${limit}`);
   },
+
+  // Get archived posts
+  getArchivedPosts: async (page = 1, limit = 10) => {
+    return await api.get(`/thread/archived?page=${page}&limit=${limit}`);
+  },
+
+  // Delete post permanently
+  deletePost: async (postId) => {
+    return await api.delete(`/thread/me/${postId}`);
+  },
 };
 

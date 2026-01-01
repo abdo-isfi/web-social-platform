@@ -51,9 +51,9 @@ export function BookmarksPage() {
          await followerService.unfollowUser(authorId);
          dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
       } else if (action === 'report') {
-         console.log(`Reported post ${id}`);
+         // console.log(`Reported post ${id}`);
       }
-      console.log(`Post ${id}: ${action}`);
+      // console.log(`Post ${id}: ${action}`);
     }, 'login');
   };
 

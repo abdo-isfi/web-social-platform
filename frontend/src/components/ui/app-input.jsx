@@ -10,7 +10,7 @@ const AppInput = React.forwardRef((props, ref) => {
           ref={ref}
           type="text"
           id={rest.id || rest.name}
-          className={`peer relative z-10 w-full h-12 px-4 rounded-xl border-2 border-border bg-background/50 text-foreground font-medium text-base outline-none shadow-sm transition-all duration-300 ease-in-out hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-50 disabled:cursor-not-allowed ${icon ? 'pr-12' : ''} [&:-webkit-autofill]:!bg-background [&:-webkit-autofill]:!shadow-[0_0_0_1000px_hsl(var(--background))_inset] [&:-webkit-autofill]:!text-white [&:-webkit-autofill]:![-webkit-text-fill-color:#ffffff] transition-colors caret-primary placeholder-shown:border-border placeholder:text-transparent pt-3 pb-1`}
+          className={`peer relative z-10 w-full h-12 px-4 rounded-xl border-2 border-border bg-background/50 text-foreground font-medium text-base outline-none shadow-sm transition-all duration-300 ease-in-out hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-50 disabled:cursor-not-allowed ${icon ? 'pr-12' : ''} [&:-webkit-autofill]:!bg-background [&:-webkit-autofill]:!shadow-[0_0_0_1000px_hsl(var(--background))_inset] [&:-webkit-autofill]:![-webkit-text-fill-color:hsl(var(--foreground))] transition-colors caret-primary placeholder-shown:border-border placeholder:text-transparent pt-3 pb-1`}
           placeholder=" " 
           {...rest}
         />

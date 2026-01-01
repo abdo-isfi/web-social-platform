@@ -141,11 +141,7 @@ export function SocialCard({
                         <>
                           <div className="h-px bg-border my-1" />
                           <button 
-                            onClick={() => {
-                              if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-                                onMore("delete");
-                              }
-                            }}
+                            onClick={() => onMore("delete")}
                             className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-destructive/10 text-destructive rounded-lg transition-colors w-full text-left font-bold"
                           >
                             <Trash2 className="w-4 h-4" />

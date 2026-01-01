@@ -65,7 +65,7 @@ export function CreatePost({ onPost }) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What is happening?!" 
-            className="w-full bg-transparent border-none text-lg focus:ring-0 placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
+            className="w-full bg-transparent border-none text-lg text-foreground focus:ring-0 placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
             rows={Math.max(2, content.split('\n').length)}
           />
           

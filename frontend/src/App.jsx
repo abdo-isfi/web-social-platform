@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import Feed from '@/pages/Feed';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { BookmarksPage } from '@/pages/BookmarksPage';
+import { ArchivedPostsPage } from '@/pages/ArchivedPostsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useSelector, useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
@@ -103,6 +104,14 @@ function App() {
           element={
             <ProtectedRoute>
               <BookmarksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/archived" 
+          element={
+            <ProtectedRoute>
+              <ArchivedPostsPage />
             </ProtectedRoute>
           } 
         />

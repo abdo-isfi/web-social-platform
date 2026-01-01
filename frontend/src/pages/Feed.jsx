@@ -5,13 +5,15 @@ import { CreatePost } from '@/components/feed/CreatePost';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost } from '@/store/slices/postSlice';
+import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost } from '@/store/slices/postSlice';
 import { followerService } from '@/services/follower.service';
 import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { setFeedMode } from '@/store/slices/uiSlice';
 import { cn } from '@/lib/utils';
 import { PostComments } from '@/components/feed/PostComments';
+import { EditPostModal } from '@/components/modals/EditPostModal';
+import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
 
 // Helper function to calculate time ago
 function getTimeAgo(date) {
@@ -44,6 +46,8 @@ export default function Feed() {
   
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [deletingPostId, setDeletingPostId] = useState(null);
   const [replying, setReplying] = useState(false);
 
   // Fetch posts on mount and when feedMode changes
@@ -82,7 +86,11 @@ export default function Feed() {
       } else if (action === 'bookmarked') {
          dispatch(bookmarkPost(id));
       } else if (action === 'delete') {
-         dispatch(deletePost(id));
+         setDeletingPostId(id);
+      } else if (action === 'edit') {
+         // Find the post object to pass to modal
+         const post = posts.find(p => (p._id || p.id) === id);
+         setEditingPost(post);
       } else if (action === 'archive') {
          dispatch(archivePost(id));
       } else if (action === 'follow') {
@@ -91,11 +99,7 @@ export default function Feed() {
       } else if (action === 'unfollow') {
          await followerService.unfollowUser(authorId);
          dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
-      } else if (action === 'report') {
-         // Placeholder for reporting logic
-         console.log(`Reported post ${id}`);
       }
-      console.log(`Post ${id}: ${action}`);
     }, 'login');
   };
 
@@ -120,7 +124,6 @@ export default function Feed() {
   };
 
   const filteredPosts = posts;
-  console.log("Feed posts:", filteredPosts);
 
   return (
     <div className="space-y-0 -mt-6">
@@ -209,6 +212,36 @@ export default function Feed() {
         onOpenChange={(open) => !open && setReplyingTo(null)}
         onSubmit={handleReplySubmit}
         loading={replying}
+      />
+
+      <EditPostModal 
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        post={editingPost}
+        onSuccess={(updatedPost) => {
+            // Refresh feed or update local state
+            // fetchPosts will refresh everything, or we can assume redux handles it if we dipatch an action? 
+            // postService.updatePost returns updated data. We probably want to update Redux store.
+            // Ideally we should dispatch an action 'postUpdated'.
+            // For now, re-fetching current page or updating list in Redux is needed.
+            // Since we don't have updatePost action in slice that takes payload directly to update state (we have async thunk but we called service directly in modal),
+            // we can trigger a fetch or just let it be if user refreshes. 
+            // Better: Dispatch fetchPosts or make updatePost an async thunk in slice that handles update.
+            // But modal handles service call.
+            // Let's just refresh feed for simplicity or maybe dispatch an action if available.
+            // Actually, we can dispatch fetchPosts to refresh.
+            dispatch(fetchPosts({ page: 1, limit: 20, mode: feedMode === 'public' ? 'discover' : 'following' }));
+        }}
+      />
+
+      <DeleteAlertModal 
+        isOpen={!!deletingPostId}
+        onClose={() => setDeletingPostId(null)}
+        onConfirm={async () => {
+             await dispatch(deletePost(deletingPostId));
+             setDeletingPostId(null);
+        }}
+        loading={status === 'loading'}
       />
     </div>
   );

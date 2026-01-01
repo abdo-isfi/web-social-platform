@@ -17,9 +17,11 @@ router.post(
   createThread.createThread
 );
 router.get('/me', authMiddleware, pagination, createThread.getUserThreads);
+router.get('/archived', authMiddleware, pagination, createThread.getArchivedThreads);
 router.get('/bookmarks', authMiddleware, pagination, createThread.getBookmarkedThreads);
 router.get('/me/:threadId', authMiddleware, createThread.getThreadById);
 router.patch('/me/:threadId', authMiddleware, mediaUpload.single('media'), createThread.updateThread);
+router.delete('/me/:threadId', authMiddleware, createThread.deleteThread);
 router.patch('/archive/:threadId', authMiddleware, createThread.archiveThread);
 
 // Repost

@@ -47,8 +47,7 @@ function NotificationItem({ notification, onClick }) {
         try {
             setLoading(true);
             await followerService.rejectFollowRequest(notification.sender._id);
-            // Hide notification item or similar? For now just log and rely on refresh or local state
-            console.log("Rejected");
+            // Hide notification item or similar? For now just rely on refresh or local state
         } catch (error) {
             console.error("Reject error", error);
         } finally {

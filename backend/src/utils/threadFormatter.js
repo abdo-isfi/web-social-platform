@@ -6,6 +6,12 @@ const Thread = require("../models/thread.model");
  * Formats a thread object with permissions, counts, and base64 media.
  */
 const formatThreadResponse = async (thread, userId) => {
+    // Handle orphaned threads (author deleted)
+    if (!thread.author) {
+        console.warn(`⚠ Thread ${thread._id} has no author (deleted user)`);
+        return null; // Skip this thread
+    }
+
     // Format avatars
     if (thread.author && thread.author.avatar && !thread.author.avatar.toString().startsWith('data:')) {
         thread.author.avatar = `data:${thread.author.avatarType};base64,${thread.author.avatar.toString('base64')}`;
