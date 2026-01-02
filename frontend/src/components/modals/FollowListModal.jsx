@@ -6,6 +6,7 @@ import { Loader2, UserPlus, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useSelector } from 'react-redux';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function FollowListModal({ isOpen, onClose, userId, type, title }) {
   const [users, setUsers] = useState([]);
@@ -91,9 +92,8 @@ export function FollowListModal({ isOpen, onClose, userId, type, title }) {
                 className="flex items-center justify-between p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer transition-all animate-in fade-in slide-in-from-bottom-2 duration-300"
               >
                 <div className="flex items-center gap-3">
-                  <img 
-                    src={user.avatar || "https://github.com/shadcn.png"} 
-                    alt={user.username}
+                  <UserAvatar 
+                    user={user}
                     className="w-11 h-11 rounded-full object-cover border border-border/50 shadow-sm"
                   />
                   <div className="flex flex-col">

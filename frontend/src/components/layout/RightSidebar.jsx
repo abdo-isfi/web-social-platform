@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { fetchSuggestions, followUser } from '@/store/slices/userSlice';
 import { Link } from 'react-router-dom';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function RightSidebar() {
   const dispatch = useDispatch();
@@ -56,9 +57,8 @@ export function RightSidebar() {
                   to={`/profile/${user._id || user.id}`} 
                   className="flex items-center gap-3 hover:opacity-80 transition-all flex-1 min-w-0"
                 >
-                  <img 
-                    src={user.avatar || "https://github.com/shadcn.png"} 
-                    alt={user.username} 
+                  <UserAvatar 
+                    user={user} 
                     className="w-10 h-10 rounded-full object-cover border-2 border-background shadow-sm" 
                   />
                   <div className="min-w-0">

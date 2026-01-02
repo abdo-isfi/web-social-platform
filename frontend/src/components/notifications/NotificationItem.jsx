@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { followerService } from "@/services/follower.service";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function Dot() {
   return (
@@ -79,12 +80,11 @@ export function NotificationItem({ notification, onClick }) {
             onClick={() => onClick(notification._id || notification.id)}
         >
             <div className="relative flex items-start gap-4 pe-3">
-                <img
+                <UserAvatar
                     className="size-10 rounded-full object-cover border border-border"
-                    src={notification.sender?.avatar || "https://github.com/shadcn.png"}
+                    user={notification.sender}
                     width={40}
                     height={40}
-                    alt={notification.sender?.username || "User"}
                 />
                 <div className="flex-1 space-y-1">
                     <p className="text-left text-foreground/80 leading-snug">

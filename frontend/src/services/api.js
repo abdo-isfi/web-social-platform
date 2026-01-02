@@ -5,7 +5,7 @@ const api = axios.create({
   baseURL: '/api', // Use Vite proxy (configured in vite.config.js)
   withCredentials: true, // Important for cookies
   headers: {
-    'Content-Type': 'application/json',
+    // Let axios set Content-Type automatically based on the request body
   },
 });
 

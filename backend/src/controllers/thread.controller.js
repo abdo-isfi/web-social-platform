@@ -14,7 +14,6 @@ const createThread = async (req, res) => {
   try {
     const { content, parentThread } = req.body;
     
-    // Check if either content or media is present
     const hasMedia = !!req.file;
     const hasContent = content && content.trim() !== "";
 
@@ -75,7 +74,7 @@ const createThread = async (req, res) => {
         
         // Store only metadata and URL in MongoDB (not binary data)
         threadData.media = {
-          type: mediaType,
+          mediaType: mediaType,
           url: url,
           key: key,
           contentType: req.file.mimetype,
@@ -228,9 +227,11 @@ const getThreadById = async (req, res) => {
       return responseHandler.notFound(res, "Thread");
     }
 
+    const formattedThread = await formatThreadResponse(thread, userId);
+    
     return responseHandler.success(
       res,
-      thread,
+      formattedThread,
       'Thread fetched successfully',
       statusCodes.SUCCESS
     );
@@ -277,7 +278,6 @@ const updateThread = async (req, res) => {
         // Generate unique filename
         const uniqueFileName = generateUniqueFileName(req.file.originalname);
         
-        console.log(`Uploading ${mediaType} to MinIO: ${uniqueFileName}`);
         
         // Upload to MinIO
         const { key, url } = await uploadToMinIO(
@@ -288,7 +288,7 @@ const updateThread = async (req, res) => {
         
         // Update media with MinIO data
         thread.media = {
-          type: mediaType,
+          mediaType: mediaType,
           url: url,
           key: key,
           contentType: req.file.mimetype,
@@ -333,9 +333,11 @@ const updateThread = async (req, res) => {
       .populate('author', '_id username name avatar avatarType')
       .lean();
 
+    const formattedThread = await formatThreadResponse(updatedThread, userId);
+
     return responseHandler.success(
       res,
-      updatedThread,
+      formattedThread,
       'Thread updated successfully',
       statusCodes.UPDATED
     );

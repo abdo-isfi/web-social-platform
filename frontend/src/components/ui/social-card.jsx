@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { Link2, Flag, Archive, Trash2, Copy, Check, UserPlus, UserMinus, Edit3, ArchiveRestore } from "lucide-react";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 export function SocialCard({
   id,
@@ -102,9 +103,8 @@ export function SocialCard({
           <div className="flex items-center justify-between mb-5">
             <Link to={`/profile/${author?._id || author?.id}`} className="flex items-center gap-4 group/author">
               <div className="relative">
-                <img
-                  src={author?.avatar || 'https://github.com/shadcn.png'}
-                  alt={author?.name}
+                <UserAvatar
+                  user={author}
                   className="w-12 h-12 rounded-full object-cover border-2 border-background shadow-sm transition-transform group-hover/author:scale-105"
                 />
               </div>
@@ -233,7 +233,7 @@ export function SocialCard({
             )}>
               {content.media.map((item, index) => (
                 <div key={index} className="relative aspect-video bg-muted">
-                  {item.type === 'video' ? (
+                  {(item.mediaType === 'video' || item.type === 'video') ? (
                      <video 
                        src={item.url} 
                        controls 

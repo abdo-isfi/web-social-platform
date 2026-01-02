@@ -83,6 +83,38 @@ async function uploadToMinIO(filePath, fileName, contentType) {
 }
 
 /**
+ * Upload a Buffer to MinIO
+ * 
+ * @param {Buffer} buffer - File buffer
+ * @param {string} fileName - Desired object name in MinIO
+ * @param {string} contentType - MIME type
+ * @returns {Promise<{key: string, url: string}>}
+ */
+async function uploadBufferToMinIO(buffer, fileName, contentType) {
+  try {
+    const metaData = {
+      'Content-Type': contentType,
+    };
+
+    // Upload buffer to MinIO
+    await minioClient.putObject(bucketName, fileName, buffer, buffer.length, metaData);
+
+    console.log(`✓ Buffer uploaded to MinIO: ${fileName}`);
+
+    // Generate presigned URL
+    const presignedUrl = await generatePresignedUrl(fileName, 24 * 60 * 60);
+
+    return {
+      key: fileName,
+      url: presignedUrl,
+    };
+  } catch (error) {
+    console.error(`✗ MinIO buffer upload failed for ${fileName}:`, error.message);
+    throw new Error(`Failed to upload buffer to MinIO: ${error.message}`);
+  }
+}
+
+/**
  * Generate a presigned URL for accessing a MinIO object
  * 
  * Presigned URLs provide temporary, secure access to private objects.
@@ -142,6 +174,7 @@ async function refreshPresignedUrl(objectKey) {
 module.exports = {
   generateUniqueFileName,
   uploadToMinIO,
+  uploadBufferToMinIO,
   generatePresignedUrl,
   deleteFromMinIO,
   refreshPresignedUrl,

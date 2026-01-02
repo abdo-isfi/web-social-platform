@@ -6,6 +6,7 @@ const { statusCodes } = require('../utils/statusCodes');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const generateTokens = require('../utils/generateToken');
 const envVar = require('../config/EnvVariable');
+const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
 
 const register = async (req, res) => {
   try {
@@ -37,11 +38,15 @@ const register = async (req, res) => {
       isPrivate: isPrivate || false
     };
     if (req.files?.avatar) {
-      userData.avatar = req.files.avatar[0].buffer;
+      const fileName = generateUniqueFileName(req.files.avatar[0].originalname);
+      const { url, key } = await uploadBufferToMinIO(req.files.avatar[0].buffer, fileName, req.files.avatar[0].mimetype);
+      userData.avatar = { url, key };
       userData.avatarType = req.files.avatar[0].mimetype;
     }
     if (req.files?.banner) {
-      userData.banner = req.files.banner[0].buffer;
+      const fileName = generateUniqueFileName(req.files.banner[0].originalname);
+      const { url, key } = await uploadBufferToMinIO(req.files.banner[0].buffer, fileName, req.files.banner[0].mimetype);
+      userData.banner = { url, key };
       userData.bannerType = req.files.banner[0].mimetype;
     }
 
@@ -58,7 +63,8 @@ const register = async (req, res) => {
       username: user.username,
       email: user.email,
       isPrivate: user.isPrivate,
-      avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
+      avatar: user.avatar || null,
+      banner: user.banner || null,
       bio: user.bio,
       location: user.location,
       website: user.website,
@@ -102,7 +108,8 @@ const login = async (req, res) => {
       username: user.username,
       email: user.email,
       isPrivate: user.isPrivate,
-      avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
+      avatar: user.avatar || null,
+      banner: user.banner || null,
       bio: user.bio,
       location: user.location,
       website: user.website,
@@ -181,14 +188,30 @@ const getCurrentUser = async (req, res) => {
       return responseHandler.notFound(res, 'User');
     }
 
+    const { refreshPresignedUrl } = require('../utils/minioHelper');
+    if (user.avatar?.key) {
+      try {
+        user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+      } catch (e) {
+        console.error('Failed to refresh avatar URL:', e);
+      }
+    }
+    if (user.banner?.key) {
+      try {
+        user.banner.url = await refreshPresignedUrl(user.banner.key);
+      } catch (e) {
+        console.error('Failed to refresh banner URL:', e);
+      }
+    }
+
     const userResponse = {
       _id: user._id,
       name: user.name,
       username: user.username,
       email: user.email,
       isPrivate: user.isPrivate,
-      avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
-      banner: user.banner ? `data:${user.bannerType};base64,${user.banner.toString('base64')}` : null,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
       bio: user.bio,
       location: user.location,
       website: user.website,

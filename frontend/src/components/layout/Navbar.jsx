@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function Navbar() {
   const dispatch = useDispatch();
@@ -91,9 +92,8 @@ export function Navbar() {
             <>
               <NotificationsPopover />
               <Link to="/profile/me">
-                <img 
-                  src={user?.avatar || "https://github.com/shadcn.png"} 
-                  alt="Profile" 
+                <UserAvatar 
+                  user={user} 
                   className="w-9 h-9 rounded-full border border-border cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
                 />
               </Link>

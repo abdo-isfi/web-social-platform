@@ -9,6 +9,9 @@ export const userService = {
   // Update user profile
   updateProfile: async (data, isFormData = false) => {
     const config = {};
+    if (isFormData) {
+      config.headers = { 'Content-Type': 'multipart/form-data' };
+    }
     return await api.patch('/user/me', data, config);
   },
 

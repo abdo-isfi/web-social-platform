@@ -2,6 +2,8 @@ const User = require('../models/user.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const hashPassword = require('../utils/hashPassword'); 
+const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
+
 const createUser = async (req, res) => {
   try {
     const { name, username, email, password, isPrivate } = req.body;
@@ -31,7 +33,9 @@ const createUser = async (req, res) => {
     };
 
     if (req.file) {
-      userData.avatar = req.file.buffer;
+      const fileName = generateUniqueFileName(req.file.originalname);
+      const { url, key } = await uploadBufferToMinIO(req.file.buffer, fileName, req.file.mimetype);
+      userData.avatar = { url, key };
       userData.avatarType = req.file.mimetype;
     }
 
@@ -47,7 +51,8 @@ const createUser = async (req, res) => {
       isPrivate: user.isPrivate,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
     };
 
     return responseHandler.success(
@@ -136,13 +141,17 @@ const updateProfile = async (req, res) => {
 
     // Update banner
     if (req.files?.banner) {
-      user.banner = req.files.banner[0].buffer;
+      const fileName = generateUniqueFileName(req.files.banner[0].originalname);
+      const { url, key } = await uploadBufferToMinIO(req.files.banner[0].buffer, fileName, req.files.banner[0].mimetype);
+      user.banner = { url, key };
       user.bannerType = req.files.banner[0].mimetype;
     }
 
     // Update avatar
     if (req.files?.avatar) {
-      user.avatar = req.files.avatar[0].buffer;
+      const fileName = generateUniqueFileName(req.files.avatar[0].originalname);
+      const { url, key } = await uploadBufferToMinIO(req.files.avatar[0].buffer, fileName, req.files.avatar[0].mimetype);
+      user.avatar = { url, key };
       user.avatarType = req.files.avatar[0].mimetype;
     }
 
@@ -156,12 +165,8 @@ const updateProfile = async (req, res) => {
       isPrivate: user.isPrivate,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      avatar: user.avatar
-        ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}`
-        : null,
-      banner: user.banner
-        ? `data:${user.bannerType};base64,${user.banner.toString('base64')}`
-        : null,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
       bio: user.bio,
       location: user.location,
       website: user.website,
@@ -209,6 +214,22 @@ const getUserById = async (req, res) => {
 
     const isAuthorized = req.user && (req.user.id === userId || isFollowing);
 
+    const { refreshPresignedUrl } = require('../utils/minioHelper');
+    if (user.avatar?.key) {
+        try {
+            user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+        } catch (e) {
+            console.error('Failed to refresh avatar URL:', e);
+        }
+    }
+    if (user.banner?.key) {
+        try {
+            user.banner.url = await refreshPresignedUrl(user.banner.key);
+        } catch (e) {
+            console.error('Failed to refresh banner URL:', e);
+        }
+    }
+
     const userResponse = {
         _id: user._id,
         name: user.name,
@@ -219,8 +240,8 @@ const getUserById = async (req, res) => {
         followersCount: user.followersCount,
         followingCount: user.followingCount,
         createdAt: user.createdAt,
-        avatar: user.avatar ? `data:${user.avatarType};base64,${user.avatar.toString('base64')}` : null,
-        banner: user.banner ? `data:${user.bannerType};base64,${user.banner.toString('base64')}` : null,
+        avatar: user.avatar?.url || null,
+        banner: user.banner?.url || null,
         bio: user.bio,
         location: user.location,
         website: user.website,
@@ -313,12 +334,20 @@ const getSuggestions = async (req, res) => {
       .lean();
 
      // Format avatar
-    const formattedSuggestions = suggestions.map(user => {
-      if (user.avatar) {
-        user.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
+    const { refreshPresignedUrl } = require('../utils/minioHelper');
+    const formattedSuggestions = await Promise.all(suggestions.map(async (user) => {
+      if (user.avatar?.key) {
+        try {
+            user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+        } catch (e) {
+            console.error('Failed to refresh suggestion avatar URL:', e);
+        }
       }
-      return user;
-    });
+      return {
+          ...user,
+          avatar: user.avatar?.url || null
+      };
+    }));
 
     return responseHandler.success(
       res,

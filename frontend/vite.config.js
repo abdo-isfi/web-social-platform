@@ -19,11 +19,21 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            // Silently handle proxy errors to avoid flooding the console
+          });
+        }
       },
       '/socket.io': {
         target: 'http://localhost:3000',
         ws: true,
         changeOrigin: true,
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+             // Silently handle proxy errors
+          });
+        }
       },
     },
   },

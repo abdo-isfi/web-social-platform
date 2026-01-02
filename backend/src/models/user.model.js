@@ -70,16 +70,16 @@ const userSchema = new mongoose.Schema({
     default: ''
   },
   avatar: {
-    type: Buffer,
-    default: null
+    url: String,
+    key: String
   },
   avatarType: {
     type: String,
     default: null
   },
   banner: {
-    type: Buffer,
-    default: null
+    url: String,
+    key: String
   },
   bannerType: {
     type: String,

@@ -4,6 +4,7 @@ import { postService } from '@/services/post.service';
 import { Button } from '@/components/ui/button'; // Assuming Button component exists or use standard button
 import { Loader2 } from 'lucide-react';
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function PostComments({ postId, newComment }) {
   const [comments, setComments] = useState([]);
@@ -93,9 +94,8 @@ export function PostComments({ postId, newComment }) {
                 {displayedComments.map(comment => (
                 <div key={comment._id} className="flex gap-3 group/comment-item">
                     <Link to={`/profile/${comment.author?._id || comment.author?.id}`} className="shrink-0 group/comment-author">
-                      <img 
-                          src={comment.author?.avatar || "https://github.com/shadcn.png"} 
-                          alt={comment.author?.username} 
+                      <UserAvatar 
+                          user={comment.author} 
                           className="w-8 h-8 rounded-full object-cover transition-opacity group-hover/comment-author:opacity-80"
                       />
                     </Link>

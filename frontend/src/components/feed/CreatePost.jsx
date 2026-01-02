@@ -4,14 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Image, Video, X, Smile } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useTheme } from '@/hooks/useTheme';
+import EmojiPicker from 'emoji-picker-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function CreatePost({ onPost }) {
   const { user } = useSelector(state => state.auth);
+  const { theme } = useTheme();
   const requireAuth = useAuthGuard();
   const [content, setContent] = useState('');
   const [media, setMedia] = useState([]);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const onEmojiClick = (emojiData) => {
+    setContent(prev => prev + emojiData.emoji);
+  };
 
   const handleMediaUpload = (e, type) => {
     const files = Array.from(e.target.files);
@@ -32,33 +43,41 @@ export function CreatePost({ onPost }) {
     setMedia(prev => prev.filter(m => m.id !== id));
   };
 
-  const handleSubmit = () => {
-    if ((!content.trim() && media.length === 0)) return;
+  const handleSubmit = async () => {
+    if ((!content.trim() && media.length === 0) || loading) return;
 
-    // Create FormData to send file properly
-    const formData = new FormData();
-    formData.append('content', content);
-    
-    // Add the actual file (only first media item for now, backend expects single file)
-    if (media.length > 0) {
-      formData.append('media', media[0].file);
+    try {
+      setLoading(true);
+      // Create FormData to send file properly
+      const formData = new FormData();
+      formData.append('content', content);
+      
+      // Add the actual file (only first media item for now, backend expects single file)
+      if (media.length > 0) {
+        formData.append('media', media[0].file);
+      }
+
+      await onPost(formData);
+
+      setContent('');
+      setMedia([]);
+    } catch (error) {
+      console.error("Failed to create post:", error);
+    } finally {
+      setLoading(false);
     }
-
-    onPost(formData);
-
-    setContent('');
-    setMedia([]);
   };
 
   const isDisabled = !content.trim() && media.length === 0;
 
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm transition-all hover:border-primary/20 group mx-2 md:mx-4">
+      {/* Post Input Area */}
       <div className="flex gap-5">
+         {/* User Avatar */}
          <div className="w-12 h-12 rounded-full ring-2 ring-primary/10 overflow-hidden flex-shrink-0 transition-all group-hover:ring-primary/30">
-            <img 
-              src={user?.avatar || "https://github.com/shadcn.png"} 
-              alt="User" 
+            <UserAvatar 
+              user={user} 
               className="w-full h-full object-cover"
             />
          </div>
@@ -102,7 +121,9 @@ export function CreatePost({ onPost }) {
         </div>
       </div>
 
+      {/* Post Actions & Footer */}
       <div className="flex justify-between items-center mt-6 pt-4 border-t border-border/10">
+        {/* Media & Emoji Icons */}
         <div className="flex gap-1 text-primary">
           <button 
             onClick={() => requireAuth(() => fileInputRef.current?.click())}
@@ -118,12 +139,36 @@ export function CreatePost({ onPost }) {
           >
             <Video className="w-5 h-5" />
           </button>
-          <button 
-            className="p-2.5 hover:bg-primary/10 rounded-full text-primary transition-all duration-200 active:scale-90"
-            title="Add Emoji"
-          >
-            <Smile className="w-5 h-5" />
-          </button>
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <button 
+                className="p-2.5 hover:bg-primary/10 rounded-full text-primary transition-all duration-200 active:scale-90 outline-none"
+                title="Add Emoji"
+                onClick={(e) => {
+                  e.preventDefault();
+                  requireAuth(() => setShowEmojiPicker(!showEmojiPicker));
+                }}
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 border-none bg-transparent shadow-none w-auto" side="top" align="start" sideOffset={10}>
+              <div className="rounded-[2.5rem] overflow-hidden border border-border/50 shadow-2xl animate-in zoom-in-95 duration-200">
+                <EmojiPicker 
+                  onEmojiClick={onEmojiClick}
+                  autoFocusSearch={false}
+                  theme={theme}
+                  width={320}
+                  height={420}
+                  searchDisabled={false}
+                  skinTonesDisabled
+                  previewConfig={{ showPreview: false }}
+                  lazyLoadEmojis={true}
+                  searchPlaceHolder="Search emojis..."
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
           
           {/* Hidden Inputs */}
           <input 
@@ -153,10 +198,10 @@ export function CreatePost({ onPost }) {
            )}
            <Button 
              onClick={handleSubmit} 
-             disabled={isDisabled}
+             disabled={isDisabled || loading}
              className="rounded-full font-black px-8 py-6 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
            >
-             Post
+             {loading ? 'Posting...' : 'Post'}
            </Button>
         </div>
       </div>

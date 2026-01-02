@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { postService } from '@/services/post.service';
 import { Image, Video, X } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function EditPostModal({ isOpen, onClose, post, onSuccess }) {
   const { user } = useSelector(state => state.auth);
@@ -73,7 +74,7 @@ export function EditPostModal({ isOpen, onClose, post, onSuccess }) {
         <div className="p-6 pt-2">
           <div className="flex gap-4">
              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex-shrink-0">
-                <img src={user?.avatar || "https://github.com/shadcn.png"} alt={user?.name} className="w-full h-full object-cover"/>
+                <UserAvatar user={user} className="w-full h-full object-cover"/>
              </div>
              <div className="flex-1">
                 <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="What is happening?!" className="w-full bg-transparent border border-border rounded-xl p-3 text-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-h-[120px] resize-none"/>

@@ -18,6 +18,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { FollowListModal } from '@/components/modals/FollowListModal';
 import { PostComments } from '@/components/feed/PostComments';
 import { CommentDialog } from '@/components/feed/CommentDialog';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
@@ -345,9 +346,8 @@ export function ProfilePage() {
               {/* Header: Avatar on left, Follow/Edit button on right */}
               <div className="flex justify-between items-end">
                 <div className="relative">
-                  <img
-                    src={profile.avatar || 'https://github.com/shadcn.png'}
-                    alt={profile.username}
+                  <UserAvatar
+                    user={profile}
                     className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-background shadow-xl object-cover"
                   />
                 </div>

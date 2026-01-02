@@ -9,7 +9,7 @@ const threadSchema = new mongoose.Schema(
     },
 
     media: {
-      type: {
+      mediaType: {
         type: String,
         enum: ["image", "video"],
       },
