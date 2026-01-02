@@ -55,6 +55,27 @@ async function initMinIO() {
       console.log(`✓ MinIO bucket '${bucketName}' configured for presigned URL access`);
     }
 
+    // Set bucket CORS policy to allow web access (especially for video streaming)
+    // We apply this every time to ensure the configuration is correct
+    const corsConfig = {
+      CORSRules: [
+        {
+          AllowedOrigins: ['*'],
+          AllowedMethods: ['GET', 'HEAD'],
+          AllowedHeaders: ['*'],
+          ExposeHeaders: ['ETag', 'Content-Range', 'Accept-Ranges', 'Content-Type', 'Content-Length'],
+          MaxAgeSeconds: 3600
+        }
+      ]
+    };
+
+    try {
+      await minioClient.setBucketCors(bucketName, corsConfig);
+      console.log(`✓ MinIO bucket '${bucketName}' CORS policy verified/updated`);
+    } catch (corsError) {
+      console.warn('⚠ Could not set bucket CORS:', corsError.message);
+    }
+
     console.log('✓ MinIO initialization completed successfully');
   } catch (error) {
     console.error('✗ MinIO initialization failed:', error.message);

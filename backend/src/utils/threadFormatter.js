@@ -136,12 +136,14 @@ const formatThreadResponse = async (thread, userId) => {
         
         isLiked = !!await Like.findOne({ user: userId, thread: thread._id });
         isReposted = !!await Thread.findOne({ author: userId, repostOf: thread._id });
-        isBookmarked = user?.bookmarks?.some(b => b.toString() === thread._id.toString());
+        isBookmarked = user?.bookmarks?.some(b => b.toString() === (thread._id?.toString() || thread._id));
         
-        const authorId = thread.author._id || thread.author;
-        isOwner = authorId.toString() === userId.toString();
+        const authorId = thread.author?._id || thread.author;
+        if (authorId && userId) {
+            isOwner = authorId.toString() === userId.toString();
+        }
         
-        if (!isOwner) {
+        if (!isOwner && authorId && userId) {
             const follow = await Follow.findOne({ follower: userId, following: authorId });
             if (follow) {
                 isFollowingAuthor = follow.status === 'ACCEPTED';

@@ -235,10 +235,14 @@ export function SocialCard({
                 <div key={index} className="relative aspect-video bg-muted">
                   {(item.mediaType === 'video' || item.type === 'video') ? (
                      <video 
-                       src={item.url} 
                        controls 
+                       playsInline
+                       preload="metadata"
                        className="w-full h-full object-cover"
-                     /> 
+                     >
+                       <source src={item.url} type={item.contentType || 'video/mp4'} />
+                       Your browser does not support the video tag.
+                     </video>
                   ) : (
                     <img 
                       src={item.url} 

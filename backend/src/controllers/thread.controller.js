@@ -107,6 +107,10 @@ const createThread = async (req, res) => {
       .populate('author', '_id username name avatar avatarType')
       .lean();
 
+    if (!populatedThread) {
+        throw new Error("Failed to retrieve created thread for formatting");
+    }
+
     const formattedThread = await formatThreadResponse(populatedThread, req.user.id);
 
     // Verify notifications for mentions
@@ -132,11 +136,11 @@ const createThread = async (req, res) => {
       statusCodes.CREATED
     );
   } catch (error) {
-    console.error("Create thread error:", error);
+    console.error("Create thread error stack:", error.stack);
 
     return responseHandler.error(
       res,
-      null,
+      error.message || "Failed to create thread",
       statusCodes.INTERNAL_SERVER_ERROR
     );
   }

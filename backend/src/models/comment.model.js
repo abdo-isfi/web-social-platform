@@ -18,7 +18,7 @@ const commentSchema = new mongoose.Schema(
       required: true,
     },
     media: { // Keeping media structure for future-proofing or if comments support it
-      type: {
+      mediaType: {
         type: String,
         enum: ["image", "video"],
       },
