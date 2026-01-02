@@ -1,22 +1,40 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { fetchSuggestions, followUser } from '@/store/slices/userSlice';
 import { Link } from 'react-router-dom';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { performSearch, clearSearch } from '@/store/slices/searchSlice';
 
 export function RightSidebar() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
   const { suggestions, loading } = useSelector(state => state.user);
   const { isAuthenticated } = useSelector(state => state.auth);
+  const { results, loading: searchLoading } = useSelector(state => state.search);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && suggestions.length === 0) {
       dispatch(fetchSuggestions());
     }
   }, [isAuthenticated, dispatch, suggestions.length]);
+
+  // Debounced search logic
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim().length > 0) {
+        dispatch(performSearch({ query: searchQuery, type: 'people' }));
+      } else {
+        dispatch(clearSearch());
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, dispatch]);
 
   const handleFollow = (userId) => {
     requireAuth(() => {
@@ -33,13 +51,86 @@ export function RightSidebar() {
   return (
     <div className="flex flex-col w-[290px] shrink-0 pt-0 pb-8 px-4 gap-8">
       
-      {/* Search */}
-      <div className="relative">
-        <input 
-          type="text" 
-          placeholder="Search..." 
-          className="w-full bg-white/10 dark:bg-black/20 border-white/5 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-primary backdrop-blur-sm transition-all focus:bg-white/20 dark:focus:bg-black/30 placeholder:text-muted-foreground"
-        />
+      {/* Enhanced Search */}
+      <div className="relative group/search">
+        {/* Search Input Container */}
+        <div className="relative flex items-center">
+          <div className="absolute left-4 text-muted-foreground group-focus-within/search:text-primary transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setShowResults(true)}
+            placeholder="Search users, hashtags..." 
+            className="w-full bg-muted/60 dark:bg-black/40 border border-border/50 rounded-2xl pl-12 pr-10 py-3 text-[15px] focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-background transition-all outline-none placeholder:text-muted-foreground/60 shadow-inner"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          )}
+        </div>
+
+        {/* Search Results Dropdown */}
+        {showResults && searchQuery.trim().length > 0 && (
+          <>
+            <div 
+              className="fixed inset-0 z-10" 
+              onClick={() => setShowResults(false)}
+            />
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border shadow-2xl rounded-2xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+                {searchLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
+                    <p className="text-sm text-muted-foreground">Searching...</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* People Section Only for now */}
+                    {results?.users?.length > 0 && (
+                      <div className="p-2">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-3 py-2">People</h4>
+                        <div className="flex flex-col gap-1">
+                          {results?.users?.map(user => (
+                            <Link 
+                              key={user._id} 
+                              to={`/profile/${user._id}`}
+                              onClick={() => setShowResults(false)}
+                              className="flex items-center gap-3 p-3 hover:bg-muted/80 rounded-xl transition-colors group/res"
+                            >
+                              <UserAvatar user={user} className="w-10 h-10 shadow-sm" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm truncate group-hover/res:text-primary transition-colors">{user.name || user.username}</p>
+                                <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {results?.users?.length === 0 && (
+                      <div className="p-10 text-center">
+                        <p className="text-sm text-muted-foreground">No results found for "{searchQuery}"</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="p-3 bg-muted/30 border-t border-border text-center">
+                <button className="text-xs font-bold text-primary hover:underline">
+                  View all results
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Suggested Users - Real Data */}

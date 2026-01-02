@@ -5,7 +5,7 @@ import { CreatePost } from '@/components/feed/CreatePost';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost } from '@/store/slices/postSlice';
+import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost, clearPosts } from '@/store/slices/postSlice';
 import { followerService } from '@/services/follower.service';
 import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
@@ -52,6 +52,7 @@ export default function Feed() {
 
   // Fetch posts on mount and when feedMode changes
   useEffect(() => {
+    dispatch(clearPosts()); // Clear old posts instantly to avoid flickering/phantom feed
     dispatch(fetchPosts({ 
       page: 1, 
       limit: 20, 

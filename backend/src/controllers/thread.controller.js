@@ -463,7 +463,7 @@ const getFeed = async (req, res) => {
         // Just the posts of followed users
         const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
         const followingIds = following.map(f => f.following);
-        followingIds.push(userId); // Include my own posts
+        // Removed: followingIds.push(userId); // We want "Following" to be EXCLUSIVE to followed others
         filter.author = { $in: followingIds };
     } else {
         // Discovery/Public mode: All posts from all users (not archived, not comments)
@@ -471,7 +471,7 @@ const getFeed = async (req, res) => {
         if (userId) {
             const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
             const followingIds = following.map(f => f.following);
-            followingIds.push(userId);
+            followingIds.push(userId); // In public mode, user's own posts should show
 
             const privateUsers = await User.find({ isPrivate: true, _id: { $nin: followingIds } }).select('_id');
             const privateUserIds = privateUsers.map(u => u._id);

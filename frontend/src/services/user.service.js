@@ -24,4 +24,12 @@ export const userService = {
   getSuggestions: async () => {
     return await api.get('/user/suggestions');
   },
+  // Update privacy
+  updatePrivacy: async (isPrivate) => {
+    return await api.put('/user/privacy', { isPrivate });
+  },
+  // Delete account
+  deleteAccount: async () => {
+    return await api.delete('/user/me');
+  },
 };

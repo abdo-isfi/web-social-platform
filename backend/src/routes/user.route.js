@@ -16,7 +16,8 @@ router.patch(
 
 const optionalAuth = require("../middlewares/optionalAuth");
 router.get('/suggestions', authenticate, userController.getSuggestions);
-router.put('/:userId/privacy', authenticate, userController.updatePrivacy);
+router.delete('/me', authenticate, userController.deleteAccount);
+router.put('/privacy', authenticate, userController.updatePrivacy);
 router.get('/:userId', optionalAuth, getUserById);
 router.get('/:userId/posts', optionalAuth, userController.getUserPosts);
 

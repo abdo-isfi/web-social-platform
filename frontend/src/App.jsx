@@ -7,6 +7,7 @@ import { BookmarksPage } from '@/pages/BookmarksPage';
 import { ArchivedPostsPage } from '@/pages/ArchivedPostsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
+import SearchPage from '@/pages/SearchPage';
 import { useSelector, useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
 import socketService from '@/services/socket';
@@ -91,6 +92,7 @@ function App() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<Feed />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/profile/:id" element={<ProfilePage />} />
         <Route 
           path="/settings" 

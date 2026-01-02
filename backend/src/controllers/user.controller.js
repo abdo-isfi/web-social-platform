@@ -381,11 +381,34 @@ const updatePrivacy = async (req, res) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Delete associated data first or handle orphans
+    // For now, let's just delete the user.
+    // In a real app, you'd delete their threads, comments, likes, etc.
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) return responseHandler.notFound(res, 'User');
+
+    // Clean up MinIO if needed (avatar, banner)
+    // const { deleteFromMinIO } = require('../utils/minioHelper');
+    // if (user.avatar?.key) await deleteFromMinIO(user.avatar.key);
+    // if (user.banner?.key) await deleteFromMinIO(user.banner.key);
+
+    return responseHandler.success(res, null, 'Account deleted successfully', statusCodes.SUCCESS);
+  } catch (error) {
+    console.error('Delete account error:', error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 module.exports = {
   createUser,
   updateProfile,
   getUserById,
   getUserPosts,
   getSuggestions,
-  updatePrivacy
+  updatePrivacy,
+  deleteAccount
 };

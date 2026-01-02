@@ -106,7 +106,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Text index for user search
-userSchema.index({ name: 'text', username: 'text', email: 'text' });
+userSchema.index({ name: 'text', username: 'text', firstName: 'text', lastName: 'text', email: 'text' });
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, User, Bell, Bookmark, Settings, Hash, LogOut } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Hash, LogOut, Search } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { openAuthModal } from '@/store/slices/uiSlice';
 import { logout } from '@/store/slices/authSlice';
@@ -27,6 +27,7 @@ export function LeftSidebar() {
 
   const navItems = [
     { icon: <Home className="w-6 h-6" />, label: "Home", href: "/" },
+    { icon: <Search className="w-6 h-6" />, label: "Search", href: "/search" },
     { icon: <Bell className="w-6 h-6" />, label: "Notifications", href: "/notifications", auth: true },
     { icon: <User className="w-6 h-6" />, label: "Profile", href: "/profile/me", auth: true },
     { icon: <Bookmark className="w-6 h-6" />, label: "Bookmarks", href: "/bookmarks", auth: true },

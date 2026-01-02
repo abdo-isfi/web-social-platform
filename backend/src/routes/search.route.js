@@ -3,6 +3,6 @@ const router = express.Router();
 const searchController = require("../controllers/search.controller");
 const authenticate = require("../middlewares/auth");
 
-router.get("/", authenticate, searchController.search);
+router.get("/", searchController.search);
 
 module.exports = router;
