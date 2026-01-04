@@ -3,8 +3,25 @@ const User = require('../models/user.model');
 const Notification = require('../models/notification.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
-const { emitToUser } = require('../socket');
+const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
+
+const broadcastUserStats = async (userId) => {
+    try {
+        const user = await User.findById(userId).select('followersCount followingCount');
+        if (user) {
+            broadcast('user_updated', { 
+                userId: user._id.toString(), 
+                updates: { 
+                    followersCount: user.followersCount, 
+                    followingCount: user.followingCount 
+                } 
+            });
+        }
+    } catch (error) {
+        console.error("Error broadcasting user stats:", error);
+    }
+};
 
 /**
  * GET FOLLOWERS
@@ -148,6 +165,10 @@ const sendFollowRequest = async (req, res) => {
     if (status === "ACCEPTED") {
       await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
       await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
+      
+      // Real-time updates
+      broadcastUserStats(followerId);
+      broadcastUserStats(followingId);
     }
 
     // Consolidate notification: find existing follow-related notif from this sender to receiver
@@ -226,6 +247,10 @@ const acceptFollowRequest = async (req, res) => {
     await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
     await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
 
+    // Real-time updates
+    broadcastUserStats(followerId);
+    broadcastUserStats(followingId);
+
     // Remove any previous follow requests/notifications before creating acceptance notif
     await Notification.deleteMany({
       sender: followerId,
@@ -291,6 +316,36 @@ const rejectFollowRequest = async (req, res) => {
   }
 };
 
+const removeFollower = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { followerId } = req.params;
+
+        const result = await Follow.findOneAndDelete({
+            follower: followerId,
+            following: userId,
+            status: 'ACCEPTED'
+        });
+
+        if (!result) {
+            return responseHandler.error(res, "Follower not found", statusCodes.NOT_FOUND);
+        }
+
+        // Atomic decrement
+        await User.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
+        await User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
+
+        // Real-time updates
+        broadcastUserStats(userId);
+        broadcastUserStats(followerId);
+
+        return responseHandler.success(res, null, "Follower removed", statusCodes.SUCCESS);
+    } catch (error) {
+        console.error("Remove follower error:", error);
+        return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 const unfollowUser = async (req, res) => {
   try {
     const followerId = req.user.id;
@@ -309,6 +364,10 @@ const unfollowUser = async (req, res) => {
     if (result.status === 'ACCEPTED') {
       await User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
       await User.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
+
+      // Real-time updates
+      broadcastUserStats(followerId);
+      broadcastUserStats(userId);
     }
 
     // Clean up all follow-related notifications from this user to that user
@@ -330,6 +389,7 @@ module.exports = {
   acceptFollowRequest,
   rejectFollowRequest,
   unfollowUser,
+  removeFollower,
   getFollowers,
   getFollowing
 };

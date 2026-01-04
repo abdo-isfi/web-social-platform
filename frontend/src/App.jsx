@@ -12,6 +12,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { setAuth } from '@/store/slices/authSlice';
 import socketService from '@/services/socket';
 import { addNotification } from '@/store/slices/notificationsSlice';
+import { updatePostStats } from '@/store/slices/postSlice';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -77,8 +78,13 @@ function App() {
         // Optional: Play sound or show toast
       });
 
+      socketService.on('post_updated', (data) => {
+        dispatch(updatePostStats(data));
+      });
+
       return () => {
         socketService.off('notification:new');
+        socketService.off('post_updated');
         socketService.disconnect();
       };
     }

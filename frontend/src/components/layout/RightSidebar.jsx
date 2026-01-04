@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { performSearch, clearSearch } from '@/store/slices/searchSlice';
+import { cn } from '@/lib/utils';
 
 export function RightSidebar() {
   const dispatch = useDispatch();
@@ -159,11 +160,23 @@ export function RightSidebar() {
                 </Link>
                 <Button 
                   size="sm" 
-                  variant="outline" 
-                  className="rounded-full h-8 px-4 font-bold text-xs hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all shrink-0"
-                  onClick={() => handleFollow(user._id || user.id)}
+                  variant={user.followStatus === 'PENDING' ? "secondary" : "outline"}
+                  className={cn(
+                    "rounded-full h-8 px-4 font-bold text-xs transition-all shrink-0",
+                    user.followStatus === 'PENDING' 
+                      ? "bg-muted text-muted-foreground border-border" 
+                      : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                  )}
+                  onClick={() => {
+                    if (user.followStatus === 'PENDING') {
+                      dispatch(unfollowUser(user._id || user.id));
+                    } else {
+                      handleFollow(user._id || user.id);
+                    }
+                  }}
                 >
-                  Follow
+                  {user.followStatus === 'PENDING' ? 'Requested' : 
+                   user.followsMe ? 'Follow back' : 'Follow'}
                 </Button>
               </div>
             ))

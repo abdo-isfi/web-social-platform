@@ -53,8 +53,17 @@ const searchSlice = createSlice({
         (action) => action.type === 'user/followUser/fulfilled',
         (state, action) => {
           const userId = action.meta.arg;
+          const followRequest = action.payload;
           const user = state.results.users.find(u => (u._id || u.id) === userId);
-          if (user) user.isFollowing = true;
+          if (user) {
+            if (followRequest?.status === 'PENDING') {
+              user.followStatus = 'PENDING';
+              user.isFollowing = false;
+            } else {
+              user.isFollowing = true;
+              user.followStatus = 'ACCEPTED';
+            }
+          }
         }
       )
       .addMatcher(
@@ -62,7 +71,20 @@ const searchSlice = createSlice({
         (state, action) => {
           const userId = action.meta.arg;
           const user = state.results.users.find(u => (u._id || u.id) === userId);
-          if (user) user.isFollowing = false;
+          if (user) {
+             user.isFollowing = false;
+             user.followStatus = null;
+          }
+        }
+      )
+      .addMatcher(
+        (action) => action.type === 'user/acceptFollowRequest/fulfilled',
+        (state, action) => {
+          const userId = action.meta.arg;
+          const user = state.results.users.find(u => (u._id || u.id) === userId);
+          if (user) {
+            user.followsMe = true;
+          }
         }
       );
   }

@@ -23,6 +23,20 @@ export const unfollowUser = createAsyncThunk(
   }
 );
 
+export const acceptFollowRequest = createAsyncThunk(
+  'user/acceptFollowRequest',
+  async (userId) => {
+    return await followerService.acceptFollowRequest(userId);
+  }
+);
+
+export const rejectFollowRequest = createAsyncThunk(
+  'user/rejectFollowRequest',
+  async (userId) => {
+    return await followerService.rejectFollowRequest(userId);
+  }
+);
+
 const initialState = {
   suggestions: [],
   loading: false,
@@ -48,13 +62,32 @@ const userSlice = createSlice({
       })
       .addCase(followUser.fulfilled, (state, action) => {
         const userId = action.meta.arg;
-        state.suggestions = state.suggestions.filter(user => user._id !== userId);
+        const followRequest = action.payload;
+        
+        if (followRequest?.status === 'PENDING') {
+            // Update the status in suggestions instead of removing it
+            const index = state.suggestions.findIndex(user => user._id === userId);
+            if (index !== -1) {
+                state.suggestions[index].followStatus = 'PENDING';
+            }
+        } else {
+            // Remove from suggestions if accepted (public account)
+            state.suggestions = state.suggestions.filter(user => user._id !== userId);
+        }
       })
       .addCase(unfollowUser.fulfilled, (state, action) => {
-        // We don't necessarily add them back to suggestions immediately 
-        // because suggestions are filtered by backend (users not followed).
-        // But if they are in suggestions and was "unfollowed" (which shouldn't happen), 
-        // we'd handle it. For now, removing on follow is the main sync.
+        const userId = action.meta.arg;
+        const index = state.suggestions.findIndex(user => user._id === userId);
+        if (index !== -1) {
+            state.suggestions[index].followStatus = null;
+        }
+      })
+      .addCase(acceptFollowRequest.fulfilled, (state, action) => {
+        const userId = action.meta.arg;
+        const index = state.suggestions.findIndex(user => user._id === userId);
+        if (index !== -1) {
+            state.suggestions[index].followsMe = true;
+        }
       });
   },
 });

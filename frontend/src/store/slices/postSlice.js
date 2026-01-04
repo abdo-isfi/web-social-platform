@@ -90,6 +90,17 @@ const postSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    updatePostStats: (state, action) => {
+      const { postId, ...updates } = action.payload;
+      state.posts.forEach(post => {
+        if (post._id === postId) {
+          Object.assign(post, updates);
+        }
+        if (post.repostOf && post.repostOf._id === postId) {
+          Object.assign(post.repostOf, updates);
+        }
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -217,5 +228,5 @@ const postSlice = createSlice({
   },
 });
 
-export const { clearPosts, clearError } = postSlice.actions;
+export const { clearPosts, clearError, updatePostStats } = postSlice.actions;
 export default postSlice.reducer;

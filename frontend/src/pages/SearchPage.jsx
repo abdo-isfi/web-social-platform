@@ -139,6 +139,8 @@ export default function SearchPage() {
                     <>Following</>
                   ) : item.followStatus === 'PENDING' ? (
                     <>Requested</>
+                  ) : item.followsMe ? (
+                    <>Follow back</>
                   ) : (
                     <>
                       <UserPlus className="w-3.5 h-3.5 mr-2" />

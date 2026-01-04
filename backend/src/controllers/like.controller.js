@@ -5,8 +5,30 @@ const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 
 const Notification = require('../models/notification.model');
-const { emitToUser } = require('../socket');
+const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
+
+const updateLikeCount = async (targetId, type) => {
+    try {
+        const count = await Like.countDocuments({ 
+            [type]: targetId 
+        });
+        
+        if (type === 'thread') {
+            broadcast('post_updated', { 
+                postId: targetId, 
+                likeCount: count 
+            });
+        } else {
+            broadcast('comment_updated', { 
+                commentId: targetId, 
+                likeCount: count 
+            });
+        }
+    } catch (error) {
+        console.error("Error broadcasting like count:", error);
+    }
+};
 
 const likeThread = async (req, res) => {
   try {
@@ -81,6 +103,9 @@ const likeThread = async (req, res) => {
       "Liked successfully",
       statusCodes.CREATED
     );
+    
+    // Real-time update (fire and forget)
+    updateLikeCount(threadId, targetType);
 
   } catch (error) {
     if (error.code === 11000) {
@@ -134,6 +159,19 @@ const unlikeThread = async (req, res) => {
       "Like removed successfully",
       statusCodes.DELETED
     );
+
+    // Real-time update
+    // We need to know the type. Based on previous logic, we don't know distinctively unless we query.
+    // But updateLikeCount queries by count. 
+    // Optimization: check if 'target.author' was populated implies we fetched 'target'. 
+    // Note: unlikeThread doesn't fetch 'target' in my code previously shown, it does findOneAndDelete.
+    // I need to check what findOneAndDelete returns. It returns the deleted document.
+    // The deleted document has 'thread' or 'comment' fields set.
+    if (like.thread) {
+        updateLikeCount(like.thread, 'thread');
+    } else if (like.comment) {
+        updateLikeCount(like.comment, 'comment');
+    }
 
   } catch (error) {
     console.error("Unlike error:", error);

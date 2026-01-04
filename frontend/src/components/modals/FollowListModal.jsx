@@ -59,6 +59,23 @@ export function FollowListModal({ isOpen, onClose, userId, type, title }) {
     }
   };
 
+  const handleRemoveFollower = async (e, targetUserId) => {
+    e.stopPropagation();
+    if (actionLoading[targetUserId]) return;
+
+    try {
+      setActionLoading(prev => ({ ...prev, [targetUserId]: true }));
+      await followerService.removeFollower(targetUserId);
+      
+      // Remove user from the list locally
+      setUsers(prevUsers => prevUsers.filter(user => user._id !== targetUserId));
+    } catch (error) {
+      console.error("Remove follower error:", error);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [targetUserId]: false }));
+    }
+  };
+
   const handleUserClick = (targetUserId) => {
     navigate(`/profile/${targetUserId}`);
     onClose();
@@ -105,17 +122,31 @@ export function FollowListModal({ isOpen, onClose, userId, type, title }) {
                 {currentUser && currentUser._id !== user._id && (
                   <Button
                     size="sm"
-                    variant={user.isFollowing ? "outline" : "default"}
-                    onClick={(e) => handleFollowToggle(e, user._id, user.isFollowing)}
+                    variant={
+                      type === 'followers' && currentUser._id === userId // userId prop is the profile being viewed
+                      ? "outline" // State when viewing own followers
+                      : user.isFollowing ? "outline" : "default"
+                    }
+                    onClick={(e) => {
+                      if (type === 'followers' && currentUser._id === userId) {
+                         handleRemoveFollower(e, user._id);
+                      } else {
+                         handleFollowToggle(e, user._id, user.isFollowing);
+                      }
+                    }}
                     className={cn(
                         "rounded-full px-4 h-8 text-xs font-bold transition-all",
-                        user.isFollowing 
+                        type === 'followers' && currentUser._id === userId
+                        ? "hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+                        : user.isFollowing 
                             ? "hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30" 
                             : "bg-primary text-primary-foreground shadow-md hover:shadow-lg active:scale-95"
                     )}
                   >
                     {actionLoading[user._id] ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : type === 'followers' && currentUser._id === userId ? (
+                      "Remove"
                     ) : user.isFollowing ? (
                       "Following"
                     ) : (

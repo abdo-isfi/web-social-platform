@@ -37,8 +37,15 @@ const emitToUser = (userId, event, payload) => {
   }
 };
 
+const broadcast = (event, payload) => {
+  if (io) {
+    io.emit(event, payload);
+  }
+};
+
 module.exports = {
   initSocket,
   emitToUser,
+  broadcast,
   connectedUsers
 };

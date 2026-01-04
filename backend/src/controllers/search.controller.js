@@ -99,6 +99,10 @@ const search = async (req, res) => {
               user.isFollowing = follow.status === 'ACCEPTED';
               user.followStatus = follow.status;
           }
+
+          // Check if searched user follows the current user
+          const followingMe = await Follow.findOne({ follower: user._id, following: userId, status: 'ACCEPTED' });
+          user.followsMe = !!followingMe;
       }
 
       if (user.avatar) {

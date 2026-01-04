@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { followerService } from "@/services/follower.service";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { useDispatch } from 'react-redux';
+import { acceptFollowRequest, rejectFollowRequest, followUser, unfollowUser } from '@/store/slices/userSlice';
 
 export function Dot() {
   return (
@@ -21,6 +23,7 @@ export function Dot() {
 }
 
 export function NotificationItem({ notification, onClick }) {
+    const dispatch = useDispatch();
     const [followsBack, setFollowsBack] = React.useState(notification.isFollowingSender);
     const [requestStatus, setRequestStatus] = React.useState(notification.followRequestStatus);
     const [loading, setLoading] = React.useState(false);
@@ -29,7 +32,7 @@ export function NotificationItem({ notification, onClick }) {
         e.stopPropagation();
         try {
             setLoading(true);
-            await followerService.acceptFollowRequest(notification.sender._id);
+            await dispatch(acceptFollowRequest(notification.sender._id)).unwrap();
             setRequestStatus("ACCEPTED");
         } catch (error) {
             console.error("Accept error", error);
@@ -42,7 +45,7 @@ export function NotificationItem({ notification, onClick }) {
         e.stopPropagation();
         try {
             setLoading(true);
-            await followerService.rejectFollowRequest(notification.sender._id);
+            await dispatch(rejectFollowRequest(notification.sender._id)).unwrap();
             setRequestStatus("REJECTED");
         } catch (error) {
             console.error("Reject error", error);
@@ -56,10 +59,10 @@ export function NotificationItem({ notification, onClick }) {
         try {
             setLoading(true);
             if (followsBack) {
-                 await followerService.unfollowUser(notification.sender._id);
+                 await dispatch(unfollowUser(notification.sender._id)).unwrap();
                  setFollowsBack(false);
             } else {
-                 await followerService.followUser(notification.sender._id);
+                 await dispatch(followUser(notification.sender._id)).unwrap();
                  setFollowsBack(true);
             }
         } catch (error) {
@@ -113,24 +116,38 @@ export function NotificationItem({ notification, onClick }) {
                     </div>
                     {notification.type === "FOLLOW_REQUEST" && (
                         <div className="pt-2 flex gap-2">
-                             <Button 
-                                size="sm" 
-                                className="h-8 px-4 text-xs font-semibold bg-primary text-primary-foreground rounded-full"
-                                onClick={handleAccept}
-                                disabled={loading || requestStatus === "ACCEPTED"}
-                             >
-                                {requestStatus === "ACCEPTED" ? "Accepted" : "Accept"}
-                             </Button>
-                             {requestStatus === "PENDING" && (
+                             {requestStatus === "ACCEPTED" ? (
                                 <Button 
                                     size="sm" 
-                                    variant="outline"
-                                    className="h-8 px-4 text-xs font-semibold rounded-full"
-                                    onClick={handleReject}
+                                    variant={followsBack ? "outline" : "default"}
+                                    className={cn("h-8 px-4 text-xs font-semibold rounded-full", followsBack && "text-muted-foreground bg-muted")}
+                                    onClick={handleFollowBack}
                                     disabled={loading}
                                 >
-                                    Reject
+                                    {loading ? "..." : followsBack ? "Following" : "Follow Back"}
                                 </Button>
+                             ) : requestStatus === "REJECTED" ? (
+                                <span className="text-xs text-muted-foreground font-medium py-1 px-2">Request rejected</span>
+                             ) : (
+                                <>
+                                    <Button 
+                                        size="sm" 
+                                        className="h-8 px-4 text-xs font-semibold bg-primary text-primary-foreground rounded-full"
+                                        onClick={handleAccept}
+                                        disabled={loading}
+                                    >
+                                        Accept
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="h-8 px-4 text-xs font-semibold rounded-full"
+                                        onClick={handleReject}
+                                        disabled={loading}
+                                    >
+                                        Reject
+                                    </Button>
+                                </>
                              )}
                         </div>
                     )}

@@ -19,6 +19,7 @@ import { FollowListModal } from '@/components/modals/FollowListModal';
 import { PostComments } from '@/components/feed/PostComments';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import socketService from '@/services/socket';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
@@ -163,6 +164,43 @@ export function ProfilePage() {
           fetchArchivedPosts();
       }
   }, [activeTab, profile, isOwnProfile]);
+
+  // Real-time updates
+  useEffect(() => {
+    const socket = socketService.getSocket();
+    if (!socket) return;
+
+    const onUserUpdate = (data) => {
+      if (profile && data.userId === profile._id) {
+          setProfile(prev => ({ ...prev, ...data.updates }));
+      }
+    };
+
+    const onPostUpdate = (data) => {
+       const updater = (list) => list.map(p => {
+            const targetId = p._id || p.id;
+            if (targetId === data.postId) {
+                // Merge updates, careful with nested objects if any, but data is usually { likeCount, commentCount }
+                return { ...p, ...data };
+            }
+            if (p.repostOf && (p.repostOf._id || p.repostOf.id) === data.postId) {
+                return { ...p, repostOf: { ...p.repostOf, ...data } };
+            }
+            return p;
+       });
+       setPosts(prev => updater(prev));
+       setLikedPosts(prev => updater(prev));
+       setArchivedPosts(prev => updater(prev));
+    };
+
+    socket.on('user_updated', onUserUpdate);
+    socket.on('post_updated', onPostUpdate);
+
+    return () => {
+       socket.off('user_updated', onUserUpdate);
+       socket.off('post_updated', onPostUpdate);
+    };
+  }, [profile]);
 
   const handleReplySubmit = async (content) => {
       if (!replyingTo) return;
@@ -387,11 +425,14 @@ export function ProfilePage() {
                         "rounded-full font-bold px-8 py-2 transition-all active:scale-95 shadow-md hover:shadow-lg",
                         isFollowing ? "bg-muted text-foreground hover:bg-destructive hover:text-destructive-foreground" : 
                         profile?.followStatus === 'PENDING' ? "bg-muted/50 text-muted-foreground border-2 border-border/50 hover:bg-destructive hover:text-destructive-foreground" :
+                        profile?.followsMe ? "bg-primary text-primary-foreground" :
                         "bg-primary text-primary-foreground"
                       )}
                       onClick={handleFollowToggle}
                     >
-                      {isFollowing ? 'Unfollow' : profile?.followStatus === 'PENDING' ? 'Requested' : 'Follow'}
+                      {isFollowing ? 'Unfollow' : 
+                       profile?.followStatus === 'PENDING' ? 'Requested' : 
+                       profile?.followsMe ? 'Follow back' : 'Follow'}
                     </Button>
                   )}
                 </div>

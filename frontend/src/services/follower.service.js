@@ -11,6 +11,11 @@ export const followerService = {
     return await api.delete(`/follower/${userId}`);
   },
 
+  // Remove a follower (force them to unfollow me)
+  removeFollower: async (followerId) => {
+    return await api.delete(`/follower/${followerId}/remove`);
+  },
+
   // Accept follow request
   acceptFollowRequest: async (userId) => {
     return await api.patch('/follower/accept', { followerId: userId });

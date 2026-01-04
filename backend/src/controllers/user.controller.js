@@ -207,7 +207,9 @@ const getUserById = async (req, res) => {
 
     let isFollowing = false;
     let followStatus = null;
-    // Check if current user follows this profile
+    let followsMe = false;
+
+    // Check relationship if user is authenticated
     if (req.user) {
         const Follow = require('../models/follower.model');
         const follow = await Follow.findOne({ follower: req.user.id, following: userId });
@@ -215,6 +217,9 @@ const getUserById = async (req, res) => {
           isFollowing = follow.status === 'ACCEPTED';
           followStatus = follow.status;
         }
+
+        const followingMe = await Follow.findOne({ follower: userId, following: req.user.id, status: 'ACCEPTED' });
+        followsMe = !!followingMe;
     }
 
     const isAuthorized = req.user && (req.user.id === userId || isFollowing);
@@ -250,8 +255,9 @@ const getUserById = async (req, res) => {
         bio: user.bio,
         location: user.location,
         website: user.website,
-        birthday: user.showBirthday || (req.user && req.user.id === userId) ? user.birthday : null,
+        birthday: (user.showBirthday || (req.user && req.user.id === userId)) ? user.birthday : null,
         showBirthday: user.showBirthday,
+        followsMe: followsMe,
     };
 
     if (user.isPrivate && !isAuthorized) {
@@ -325,23 +331,27 @@ const getSuggestions = async (req, res) => {
     const userId = req.user.id;
     const Follow = require('../models/follower.model');
 
-    // Get list of users already followed (or pending)
-    const following = await Follow.find({ follower: userId }).select('following');
+    // Get list of users already followed (ACCEPTED)
+    const following = await Follow.find({ 
+        follower: userId,
+        status: 'ACCEPTED'
+    }).select('following');
     const followingIds = following.map(f => f.following);
     
     // Add current user to exclusion list
     followingIds.push(userId);
 
-    // Find users not in the exclusion list
-    // Use aggregation to get random sample or just find with limit for now
+    // Find users not followed (ACCEPTED)
     const suggestions = await User.find({ _id: { $nin: followingIds } })
       .select('_id name username avatar avatarType')
       .limit(5)
       .lean();
 
-     // Format avatar
-    const { refreshPresignedUrl } = require('../utils/minioHelper');
+    // Map through suggestions and check for PENDING status
     const formattedSuggestions = await Promise.all(suggestions.map(async (user) => {
+      const follow = await Follow.findOne({ follower: userId, following: user._id });
+      
+      const { refreshPresignedUrl } = require('../utils/minioHelper');
       if (user.avatar?.key) {
         try {
             user.avatar.url = await refreshPresignedUrl(user.avatar.key);
@@ -349,9 +359,14 @@ const getSuggestions = async (req, res) => {
             console.error('Failed to refresh suggestion avatar URL:', e);
         }
       }
+      // Check if suggested user follows the current user
+      const followingMe = await Follow.findOne({ follower: user._id, following: userId, status: 'ACCEPTED' });
+
       return {
           ...user,
-          avatar: user.avatar?.url || null
+          avatar: user.avatar?.url || null,
+          followStatus: follow?.status || null,
+          followsMe: !!followingMe
       };
     }));
 

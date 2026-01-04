@@ -2,7 +2,7 @@ const Comment = require("../models/comment.model");
 const Thread = require("../models/thread.model");
 const Like = require("../models/like.model");
 const Notification = require('../models/notification.model');
-const { emitToUser } = require('../socket');
+const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 const responseHandler = require("../utils/responseHandler");
 const { statusCodes } = require("../utils/statusCodes");
@@ -101,6 +101,11 @@ const createComment = async (req, res) => {
         const populatedNotif = await populateNotification(notif._id);
         emitToUser(parentThread.author, 'notification:new', populatedNotif || notif);
     }
+
+    // Real-time updates
+    const commentCount = await Comment.countDocuments({ thread: threadId });
+    broadcast('post_updated', { postId: threadId, commentCount });
+    broadcast('comment_new', { threadId: threadId, comment: populatedComment });
 
     return responseHandler.success(res, populatedComment, "Comment added", statusCodes.CREATED);
   } catch (error) {
