@@ -267,8 +267,17 @@ export function ProfilePage() {
         } else if (action === 'edit') {
             const post = posts.find(p => (p._id || p.id) === postId) || likedPosts.find(p => (p._id || p.id) === postId) || archivedPosts.find(p => (p._id || p.id) === postId);
             setEditingPost(post);
-            if (action === 'follow') await followerService.followUser(authorId);
-            else await followerService.unfollowUser(authorId);
+        } else if (action === 'follow' || action === 'unfollow') {
+            if (action === 'follow') {
+                // If already pending, unfollow will cancel it
+                if (profile?.followStatus === 'PENDING') {
+                    await followerService.unfollowUser(authorId);
+                } else {
+                    await followerService.followUser(authorId);
+                }
+            } else {
+                await followerService.unfollowUser(authorId);
+            }
             fetchProfileData();
         } else if (action === 'commented') {
             setReplyingTo(postId);
@@ -328,9 +337,9 @@ export function ProfilePage() {
     <>
       <div className="space-y-6">
         {/* Profile Header & Banner */}
-        <div className="relative flex flex-col items-center">
-          <div className="h-48 sm:h-52 md:h-60 w-full relative group overflow-hidden px-0 sm:px-4">
-            <div className="w-full h-full relative rounded-3xl overflow-hidden">
+        <div className="relative flex flex-col items-center px-4">
+          <div className="h-48 sm:h-52 md:h-60 w-full relative group overflow-hidden">
+            <div className="w-full h-full relative rounded-t-[2.5rem] overflow-hidden border border-border/50 border-b-0">
               {profile.banner ? (
                 <img src={profile.banner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
               ) : (
@@ -341,14 +350,14 @@ export function ProfilePage() {
           </div>
           
           {/* Profile Details Card */}
-          <div className="w-full px-4 pb-4">
-            <div className="bg-card/50 backdrop-blur-sm rounded-[2.5rem] border border-border/50 p-6 sm:p-8 shadow-sm flex flex-col gap-6 -mt-16 sm:-mt-20 relative z-10 transition-all hover:bg-card">
+          <div className="w-full pb-4">
+            <div className="bg-card/50 backdrop-blur-sm rounded-b-[2.5rem] border border-border/50 border-t-0 p-6 sm:p-8 shadow-sm flex flex-col gap-6 relative z-10 transition-all hover:bg-card">
               {/* Header: Avatar on left, Follow/Edit button on right */}
               <div className="flex justify-between items-end">
-                <div className="relative">
+                <div className="relative -mt-16 sm:-mt-20">
                   <UserAvatar
                     user={profile}
-                    className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-background shadow-xl object-cover"
+                    className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-card shadow-xl object-cover bg-card"
                   />
                 </div>
                 
@@ -365,11 +374,13 @@ export function ProfilePage() {
                     <Button 
                       className={cn(
                         "rounded-full font-bold px-8 py-2 transition-all active:scale-95 shadow-md hover:shadow-lg",
-                        isFollowing ? "bg-muted text-foreground hover:bg-destructive hover:text-destructive-foreground" : "bg-primary text-primary-foreground"
+                        isFollowing ? "bg-muted text-foreground hover:bg-destructive hover:text-destructive-foreground" : 
+                        profile?.followStatus === 'PENDING' ? "bg-muted/50 text-muted-foreground border-2 border-border/50 hover:bg-destructive hover:text-destructive-foreground" :
+                        "bg-primary text-primary-foreground"
                       )}
                       onClick={handleFollowToggle}
                     >
-                      {isFollowing ? 'Unfollow' : 'Follow'}
+                      {isFollowing ? 'Unfollow' : profile?.followStatus === 'PENDING' ? 'Requested' : 'Follow'}
                     </Button>
                   )}
                 </div>
@@ -421,14 +432,14 @@ export function ProfilePage() {
                     onClick={handleOpenFollowing}
                     className="hover:bg-primary/5 px-4 py-2 -mx-4 rounded-xl transition-all group flex items-center gap-2"
                   >
-                    <span className="text-xl font-black text-foreground">{profile.followingCount || 0}</span> 
+                    <span className="text-xl font-black text-foreground">{Math.max(0, profile.followingCount || 0)}</span> 
                     <span className="text-muted-foreground font-medium group-hover:text-primary transition-colors">Following</span>
                   </button>
                   <button 
                     onClick={handleOpenFollowers}
                     className="hover:bg-primary/5 px-4 py-2 -mx-4 rounded-xl transition-all group flex items-center gap-2"
                   >
-                    <span className="text-xl font-black text-foreground">{profile.followersCount || 0}</span> 
+                    <span className="text-xl font-black text-foreground">{Math.max(0, profile.followersCount || 0)}</span> 
                     <span className="text-muted-foreground font-medium group-hover:text-primary transition-colors">Followers</span>
                   </button>
                 </div>

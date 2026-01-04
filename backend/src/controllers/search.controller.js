@@ -92,9 +92,13 @@ const search = async (req, res) => {
     const formattedUsers = await Promise.all(users.map(async (user) => {
       // follow status check
       user.isFollowing = false;
+      user.followStatus = null;
       if (userId) {
-          const follow = await Follow.findOne({ follower: userId, following: user._id, status: 'ACCEPTED' });
-          user.isFollowing = !!follow;
+          const follow = await Follow.findOne({ follower: userId, following: user._id });
+          if (follow) {
+              user.isFollowing = follow.status === 'ACCEPTED';
+              user.followStatus = follow.status;
+          }
       }
 
       if (user.avatar) {

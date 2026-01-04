@@ -91,11 +91,13 @@ const userSchema = new mongoose.Schema({
   }],
   followersCount: {
     type: Number,
-    default: 0
+    default: 0,
+    min: 0
   },
   followingCount: {
     type: Number,
-    default: 0
+    default: 0,
+    min: 0
   },
   refreshToken: {
     type: String,

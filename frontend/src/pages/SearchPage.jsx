@@ -125,18 +125,20 @@ export default function SearchPage() {
                 </Link>
                 
                 <Button 
-                  onClick={() => onFollow(item._id, item.isFollowing)}
-                  variant={item.isFollowing ? "secondary" : "outline"}
+                  onClick={() => onFollow(item._id, item.isFollowing || item.followStatus === 'PENDING')}
+                  variant={(item.isFollowing || item.followStatus === 'PENDING') ? "secondary" : "outline"}
                   size="sm"
                   className={cn(
                     "rounded-full px-5 font-bold text-xs h-9 transition-all shadow-sm",
-                    item.isFollowing 
+                    (item.isFollowing || item.followStatus === 'PENDING')
                       ? "bg-muted text-muted-foreground border-transparent hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20" 
                       : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
                   )}
                 >
                   {item.isFollowing ? (
                     <>Following</>
+                  ) : item.followStatus === 'PENDING' ? (
+                    <>Requested</>
                   ) : (
                     <>
                       <UserPlus className="w-3.5 h-3.5 mr-2" />

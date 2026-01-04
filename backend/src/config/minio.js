@@ -23,20 +23,27 @@ const minioClient = new Minio.Client({
 });
 
 /**
- * Validates MinIO connection by attempting to list buckets
- * This is called during server startup to fail fast if MinIO is unreachable
+ * Validates MinIO connection by attempting to list buckets with retry logic
+ * This is called during server startup to handle delays in container readiness
  * 
+ * @param {number} retries - Number of retry attempts
+ * @param {number} delay - Delay between retries in ms
  * @returns {Promise<boolean>} True if connection is successful
- * @throws {Error} If MinIO is unreachable or credentials are invalid
  */
-async function validateConnection() {
-  try {
-    await minioClient.listBuckets();
-    console.log('✓ MinIO connection validated successfully');
-    return true;
-  } catch (error) {
-    console.error('✗ MinIO connection failed:', error.message);
-    throw new Error(`MinIO connection validation failed: ${error.message}`);
+async function validateConnection(retries = 5, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await minioClient.listBuckets();
+      console.log('✓ MinIO connection validated successfully');
+      return true;
+    } catch (error) {
+      if (i === retries - 1) {
+        console.error('✗ MinIO connection failed after maximum retries:', error.message);
+        throw new Error(`MinIO connection validation failed: ${error.message}`);
+      }
+      console.warn(`⚠ MinIO not ready (attempt ${i + 1}/${retries}), retrying in ${delay / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
 }
 

@@ -305,9 +305,11 @@ const unfollowUser = async (req, res) => {
       return responseHandler.error(res, "You are not following this user", statusCodes.BAD_REQUEST);
     }
 
-    // Atomic decrement counts
-    await User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
-    await User.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
+    // Atomic decrement counts ONLY if the follow was accepted
+    if (result.status === 'ACCEPTED') {
+      await User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } });
+      await User.findByIdAndUpdate(userId, { $inc: { followersCount: -1 } });
+    }
 
     // Clean up all follow-related notifications from this user to that user
     await Notification.deleteMany({
