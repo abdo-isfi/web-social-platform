@@ -17,6 +17,11 @@ const commentSchema = new mongoose.Schema(
       ref: "Thread",
       required: true,
     },
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null
+    },
     media: { // Keeping media structure for future-proofing or if comments support it
       mediaType: {
         type: String,

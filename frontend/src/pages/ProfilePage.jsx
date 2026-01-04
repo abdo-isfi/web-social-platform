@@ -42,6 +42,10 @@ export function ProfilePage() {
   
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingComment, setEditingComment] = useState(null);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [updatedComment, setUpdatedComment] = useState(null);
+  const [justDeletedCommentId, setJustDeletedCommentId] = useState(null);
   const [replying, setReplying] = useState(false);
   const [isFollowListOpen, setIsFollowListOpen] = useState(false);
   const [followListType, setFollowListType] = useState('followers'); // 'followers' or 'following'
@@ -206,19 +210,23 @@ export function ProfilePage() {
       if (!replyingTo) return;
       setReplying(true);
       try {
-          const response = await postService.addComment(replyingTo, content);
+          // replyingTo structure: { id, type, threadId }
+          const { id, type, threadId } = replyingTo;
+          const parentCommentId = type === 'comment' ? id : null; 
+
+          const response = await postService.addComment(threadId, content, parentCommentId);
           const comment = response.comment || response; 
           
           setRecentComments(prev => ({
               ...prev,
-              [replyingTo]: comment
+              [threadId]: comment
           }));
           
           const updateList = (list) => list.map(p => {
-              if ((p._id || p.id) === replyingTo) {
+              if ((p._id || p.id) === threadId) {
                   return { ...p, commentCount: (p.commentCount || 0) + 1 };
               }
-              if (p.repostOf && (p.repostOf._id || p.repostOf.id) === replyingTo) {
+              if (p.repostOf && (p.repostOf._id || p.repostOf.id) === threadId) {
                   return { 
                       ...p, 
                       repostOf: { 
@@ -236,6 +244,35 @@ export function ProfilePage() {
           setReplyingTo(null);
       } catch (error) {
           console.error("Failed to reply", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
+  const handleCommentEditSubmit = async (content) => {
+      if (!editingComment) return;
+      setReplying(true); 
+      try {
+          const response = await postService.updateComment(editingComment._id, content);
+          const updated = response.comment || response; 
+          setUpdatedComment(updated);
+          setEditingComment(null);
+      } catch (error) {
+          console.error("Failed to update comment", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
+  const handleCommentDelete = async () => {
+      if (!deletingCommentId) return;
+      setReplying(true); 
+      try {
+          await postService.deleteComment(deletingCommentId);
+          setJustDeletedCommentId(deletingCommentId);
+          setDeletingCommentId(null);
+      } catch (error) {
+          console.error("Failed to delete comment", error);
       } finally {
           setReplying(false);
       }
@@ -318,7 +355,21 @@ export function ProfilePage() {
             }
             fetchProfileData();
         } else if (action === 'commented') {
-            setReplyingTo(postId);
+            // authorId here might be the comment object passed from onReply if it has a thread property
+            if (typeof authorId === 'object' && authorId.thread) {
+                 setReplyingTo({ 
+                     id: postId, 
+                     type: 'comment', 
+                     threadId: authorId.thread,
+                     mentionUsername: authorId.author?.username
+                 });
+            } else {
+                 setReplyingTo({ id: postId, type: 'post', threadId: postId });
+            }
+        } else if (action === 'edit_comment') {
+            setEditingComment(authorId); // authorId is comment object
+        } else if (action === 'delete_comment') {
+            setDeletingCommentId(postId); // postId is commentId here
         }
     });
   };
@@ -589,6 +640,11 @@ export function ProfilePage() {
                       <PostComments 
                           postId={displayPost._id || displayPost.id} 
                           newComment={recentComments[displayPost._id || displayPost.id]}
+                          updatedComment={updatedComment}
+                          deletedCommentId={justDeletedCommentId}
+                          onReply={(comment) => handleAction(comment._id, 'commented', comment)}
+                          onCommentEdit={(comment) => handleAction(null, 'edit_comment', comment)}
+                          onCommentDelete={(id) => handleAction(id, 'delete_comment')}
                        />
                   </SocialCard>
                 </div>
@@ -650,6 +706,26 @@ export function ProfilePage() {
         onOpenChange={(open) => !open && setReplyingTo(null)}
         onSubmit={handleReplySubmit}
         loading={replying}
+        title={replyingTo?.type === 'comment' ? "Reply to comment" : "Reply to post"}
+        initialContent={replyingTo?.mentionUsername ? `@${replyingTo.mentionUsername} ` : ""}
+      />
+
+      <CommentDialog 
+        open={!!editingComment} 
+        onOpenChange={(open) => !open && setEditingComment(null)}
+        onSubmit={handleCommentEditSubmit}
+        loading={replying}
+        title="Edit Comment"
+        initialContent={editingComment?.content || ""}
+      />
+
+      <DeleteAlertModal 
+        isOpen={!!deletingCommentId}
+        onClose={() => setDeletingCommentId(null)}
+        onConfirm={handleCommentDelete}
+        loading={replying}
+        title="Delete Comment"
+        description="Are you sure you want to delete this comment? This action cannot be undone."
       />
 
       <FollowListModal 

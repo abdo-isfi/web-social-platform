@@ -32,6 +32,8 @@ router.delete('/:threadId/repost', authMiddleware, createThread.unrepostThread);
 // Comments
 router.get('/:threadId/comments', optionalAuth, pagination, commentController.getComments);
 router.post('/:threadId/comments', authMiddleware, commentController.createComment);
+router.patch('/comments/:commentId', authMiddleware, commentController.updateComment);
+router.delete('/comments/:commentId', authMiddleware, commentController.deleteComment);
 
 // Bookmarks
 router.post('/:threadId/bookmark', authMiddleware, createThread.bookmarkThread);

@@ -32,8 +32,8 @@ export const unlikePost = createAsyncThunk(
 
 export const addComment = createAsyncThunk(
   'posts/addComment',
-  async ({ postId, content }) => {
-    const response = await postService.addComment(postId, content);
+  async ({ postId, content, parentCommentId }) => {
+    const response = await postService.addComment(postId, content, parentCommentId);
     return { postId, comment: response };
   }
 );

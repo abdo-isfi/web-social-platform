@@ -51,8 +51,8 @@ export const postService = {
   },
 
   // Add comment
-  addComment: async (postId, content) => {
-    return await api.post(`/thread/${postId}/comments`, { content });
+  addComment: async (postId, content, parentCommentId = null) => {
+    return await api.post(`/thread/${postId}/comments`, { content, parentCommentId });
   },
 
   // Bookmark post
@@ -73,6 +73,16 @@ export const postService = {
   // Delete post permanently
   deletePost: async (postId) => {
     return await api.delete(`/thread/me/${postId}`);
+  },
+
+  // Update comment
+  updateComment: async (commentId, content) => {
+    return await api.patch(`/thread/comments/${commentId}`, { content });
+  },
+
+  // Delete comment
+  deleteComment: async (commentId) => {
+    return await api.delete(`/thread/comments/${commentId}`);
   },
 };
 

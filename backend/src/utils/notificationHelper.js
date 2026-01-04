@@ -31,6 +31,13 @@ const populateNotification = async (notificationId) => {
     notification.isFollowingSender = followBack?.status === 'ACCEPTED';
     notification.followRequestStatus = senderFollow?.status || null;
 
+    if (notification.sender && notification.sender.avatar && Buffer.isBuffer(notification.sender.avatar)) {
+        notification.sender.avatar = `data:${notification.sender.avatarType};base64,${notification.sender.avatar.toString('base64')}`;
+    } else if (notification.sender?.avatar?.key) {
+        const { refreshPresignedUrl } = require('./minioHelper');
+        notification.sender.avatar.url = await refreshPresignedUrl(notification.sender.avatar.key);
+    }
+
     return notification;
   } catch (error) {
     console.error('Error populating notification:', error);

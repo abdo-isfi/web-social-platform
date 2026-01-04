@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { fetchPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost, clearPosts } from '@/store/slices/postSlice';
 import { followerService } from '@/services/follower.service';
+import { postService } from '@/services/post.service';
 import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { setFeedMode } from '@/store/slices/uiSlice';
@@ -48,6 +49,10 @@ export default function Feed() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [deletingPostId, setDeletingPostId] = useState(null);
+  const [editingComment, setEditingComment] = useState(null);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [updatedComment, setUpdatedComment] = useState(null);
+  const [justDeletedCommentId, setJustDeletedCommentId] = useState(null);
   const [replying, setReplying] = useState(false);
 
   // Fetch posts on mount and when feedMode changes
@@ -73,33 +78,46 @@ export default function Feed() {
   const handleLike = (postId, isLiked) => {
     requireAuth(() => {
       if (isLiked) {
-        dispatch(unlikePost(postId));
+         dispatch(unlikePost(postId));
       } else {
-        dispatch(likePost(postId));
+         dispatch(likePost(postId));
       }
     }, 'login');
   };
 
-  const handleAction = async (id, action, authorId) => {
+  const handleAction = async (id, action, payload) => {
     requireAuth(async () => {
       if (action === 'commented') {
-         setReplyingTo(id);
+         // payload is the comment object
+         if (typeof payload === 'object' && payload.thread) { // It's a comment
+             setReplyingTo({ 
+                 id: id, 
+                 type: 'comment', 
+                 threadId: payload.thread,
+                 mentionUsername: payload.author?.username // Store username for mention
+             });
+         } else {
+             setReplyingTo({ id: id, type: 'post', threadId: id });
+         }
       } else if (action === 'bookmarked') {
          dispatch(bookmarkPost(id));
       } else if (action === 'delete') {
          setDeletingPostId(id);
       } else if (action === 'edit') {
-         // Find the post object to pass to modal
          const post = posts.find(p => (p._id || p.id) === id);
          setEditingPost(post);
       } else if (action === 'archive') {
          dispatch(archivePost(id));
       } else if (action === 'follow') {
-         await followerService.followUser(authorId);
+         await followerService.followUser(payload);
          dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
       } else if (action === 'unfollow') {
-         await followerService.unfollowUser(authorId);
+         await followerService.unfollowUser(payload);
          dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
+      } else if (action === 'edit_comment') {
+          setEditingComment(payload);
+      } else if (action === 'delete_comment') {
+          setDeletingCommentId(id);
       }
     }, 'login');
   };
@@ -108,17 +126,54 @@ export default function Feed() {
       if (!replyingTo) return;
       setReplying(true);
       try {
-          const resultAction = await dispatch(addComment({ postId: replyingTo, content }));
+          const { id, type, threadId } = replyingTo;
+          const parentCommentId = type === 'comment' ? id : null;
+          
+          const resultAction = await dispatch(addComment({ 
+              postId: threadId, 
+              content,
+              parentCommentId 
+          }));
+
           if (addComment.fulfilled.match(resultAction)) {
              const { comment } = resultAction.payload;
              setRecentComments(prev => ({
                  ...prev,
-                 [replyingTo]: comment
+                 [threadId]: comment // Key by threadId to update correct PostComments
              }));
           }
           setReplyingTo(null);
       } catch (error) {
           console.error("Failed to reply", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
+  const handleCommentEditSubmit = async (content) => {
+      if (!editingComment) return;
+      setReplying(true); 
+      try {
+          const response = await postService.updateComment(editingComment._id, content);
+          const updated = response.comment || response; 
+          setUpdatedComment(updated);
+          setEditingComment(null);
+      } catch (error) {
+          console.error("Failed to update comment", error);
+      } finally {
+          setReplying(false);
+      }
+  };
+
+  const handleCommentDelete = async () => {
+      if (!deletingCommentId) return;
+      setReplying(true); 
+      try {
+          await postService.deleteComment(deletingCommentId);
+          setJustDeletedCommentId(deletingCommentId);
+          setDeletingCommentId(null);
+      } catch (error) {
+          console.error("Failed to delete comment", error);
       } finally {
           setReplying(false);
       }
@@ -202,6 +257,11 @@ export default function Feed() {
                      <PostComments 
                         postId={displayPost._id || displayPost.id} 
                         newComment={recentComments[displayPost._id || displayPost.id]}
+                        updatedComment={updatedComment}
+                        deletedCommentId={justDeletedCommentId}
+                        onReply={(comment) => handleAction(comment._id, 'commented', comment)}
+                        onCommentEdit={(comment) => handleAction(null, 'edit_comment', comment)}
+                        onCommentDelete={(id) => handleAction(id, 'delete_comment')}
                      />
                 </SocialCard>
               );
@@ -216,6 +276,26 @@ export default function Feed() {
         onOpenChange={(open) => !open && setReplyingTo(null)}
         onSubmit={handleReplySubmit}
         loading={replying}
+        title={replyingTo?.type === 'comment' ? "Reply to comment" : "Reply to post"}
+        initialContent={replyingTo?.mentionUsername ? `@${replyingTo.mentionUsername} ` : ""}
+      />
+
+      <CommentDialog 
+        open={!!editingComment} 
+        onOpenChange={(open) => !open && setEditingComment(null)}
+        onSubmit={handleCommentEditSubmit}
+        loading={replying}
+        title="Edit Comment"
+        initialContent={editingComment?.content || ""}
+      />
+
+      <DeleteAlertModal 
+        isOpen={!!deletingCommentId}
+        onClose={() => setDeletingCommentId(null)}
+        onConfirm={handleCommentDelete}
+        loading={replying}
+        title="Delete Comment"
+        description="Are you sure you want to delete this comment? This action cannot be undone."
       />
 
       <EditPostModal 

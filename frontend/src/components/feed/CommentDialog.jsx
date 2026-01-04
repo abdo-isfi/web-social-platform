@@ -6,11 +6,20 @@ import EmojiPicker from 'emoji-picker-react';
 import { Loader2, Smile } from 'lucide-react';
 import { useSelector } from 'react-redux';
 
-export function CommentDialog({ open, onOpenChange, onSubmit, loading }) {
+export function CommentDialog({ open, onOpenChange, onSubmit, loading, title = "Reply to post", initialContent = "" }) {
   const [content, setContent] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef(null);
   const { theme } = useSelector(state => state.ui);
+
+  // Set initial content when dialog opens
+  useEffect(() => {
+    if (open && initialContent) {
+      setContent(initialContent);
+    } else if (!open) {
+      setContent('');
+    }
+  }, [open, initialContent]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -19,7 +28,6 @@ export function CommentDialog({ open, onOpenChange, onSubmit, loading }) {
     setContent('');
     setShowPicker(false);
   };
-
   const onEmojiClick = (emojiData) => {
     setContent(prev => prev + emojiData.emoji);
   };
@@ -39,14 +47,13 @@ export function CommentDialog({ open, onOpenChange, onSubmit, loading }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showPicker]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] overflow-visible">
         <DialogHeader>
-          <DialogTitle>Reply to post</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Write your reply to this post everywhere.
+            Write your reply below.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">

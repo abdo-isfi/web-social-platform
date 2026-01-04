@@ -1,6 +1,7 @@
 const Notification = require('../models/notification.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
+const { refreshPresignedUrl } = require('../utils/minioHelper');
 const getUnreadNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -23,7 +24,7 @@ const getUnreadNotifications = async (req, res) => {
     const incomingRequests = await Follow.find({ following: userId, follower: { $in: senderIds } });
     const incomingRequestsMap = new Map(incomingRequests.map(f => [f.follower.toString(), f.status]));
 
-    const formattedNotifications = unreadNotifications.map(notification => {
+    const formattedNotifications = await Promise.all(unreadNotifications.map(async notification => {
         const senderId = notification.sender?._id?.toString() || notification.sender?.toString();
         
         let isFollowingSender = false;
@@ -34,8 +35,10 @@ const getUnreadNotifications = async (req, res) => {
             followRequestStatus = incomingRequestsMap.get(senderId);
 
             // Format avatar
-            if (notification.sender && notification.sender.avatar) {
+            if (notification.sender && notification.sender.avatar && Buffer.isBuffer(notification.sender.avatar)) {
                 notification.sender.avatar = `data:${notification.sender.avatarType};base64,${notification.sender.avatar.toString('base64')}`;
+            } else if (notification.sender?.avatar?.key) {
+                notification.sender.avatar.url = await refreshPresignedUrl(notification.sender.avatar.key);
             }
         }
         
@@ -44,7 +47,7 @@ const getUnreadNotifications = async (req, res) => {
             isFollowingSender,
             followRequestStatus 
         };
-    });
+    }));
 
     return responseHandler.success(res, formattedNotifications, "Unread notifications fetched successfully", statusCodes.SUCCESS);
   } catch (error) {
@@ -123,7 +126,7 @@ const getAllNotifications = async (req, res) => {
     const incomingRequests = await Follow.find({ following: userId, follower: { $in: senderIds } });
     const incomingRequestsMap = new Map(incomingRequests.map(f => [f.follower.toString(), f.status]));
 
-    const formattedNotifications = allNotifications.map(notification => {
+    const formattedNotifications = await Promise.all(allNotifications.map(async notification => {
         const senderId = notification.sender?._id?.toString() || notification.sender?.toString();
         
         let isFollowingSender = false;
@@ -134,8 +137,10 @@ const getAllNotifications = async (req, res) => {
             followRequestStatus = incomingRequestsMap.get(senderId);
 
             // Format avatar
-            if (notification.sender && notification.sender.avatar) {
+            if (notification.sender && notification.sender.avatar && Buffer.isBuffer(notification.sender.avatar)) {
                 notification.sender.avatar = `data:${notification.sender.avatarType};base64,${notification.sender.avatar.toString('base64')}`;
+            } else if (notification.sender?.avatar?.key) {
+                notification.sender.avatar.url = await refreshPresignedUrl(notification.sender.avatar.key);
             }
         }
         
@@ -144,7 +149,7 @@ const getAllNotifications = async (req, res) => {
             isFollowingSender,
             followRequestStatus 
         };
-    });
+    }));
 
     return responseHandler.success(res, formattedNotifications, "All notifications fetched successfully", statusCodes.SUCCESS);
   } catch (error) {

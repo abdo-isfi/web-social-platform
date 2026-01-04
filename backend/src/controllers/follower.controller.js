@@ -5,6 +5,7 @@ const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
+const { refreshPresignedUrl } = require('../utils/minioHelper');
 
 const broadcastUserStats = async (userId) => {
     try {
@@ -49,16 +50,18 @@ const getFollowers = async (req, res) => {
         followingSet = new Set(following.map(f => f.following.toString()));
     }
 
-    const formattedFollowers = followers.map(f => {
+    const formattedFollowers = await Promise.all(followers.map(async f => {
         const user = f.follower;
         if (user && user.avatar && Buffer.isBuffer(user.avatar)) {
             user.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
+        } else if (user?.avatar?.key) {
+            user.avatar.url = await refreshPresignedUrl(user.avatar.key);
         }
         return {
             ...user,
             isFollowing: followingSet.has(user._id.toString())
         };
-    });
+    }));
 
     return responseHandler.success(res, formattedFollowers, "Followers fetched successfully", statusCodes.SUCCESS);
   } catch (error) {
@@ -93,16 +96,18 @@ const getFollowing = async (req, res) => {
         followingSet = new Set(following.map(f => f.following.toString()));
     }
 
-    const formattedFollowing = followingList.map(f => {
+    const formattedFollowing = await Promise.all(followingList.map(async f => {
         const user = f.following;
         if (user && user.avatar && Buffer.isBuffer(user.avatar)) {
             user.avatar = `data:${user.avatarType};base64,${user.avatar.toString('base64')}`;
+        } else if (user?.avatar?.key) {
+            user.avatar.url = await refreshPresignedUrl(user.avatar.key);
         }
         return {
             ...user,
             isFollowing: followingSet.has(user._id.toString())
         };
-    });
+    }));
 
     return responseHandler.success(res, formattedFollowing, "Following fetched successfully", statusCodes.SUCCESS);
   } catch (error) {

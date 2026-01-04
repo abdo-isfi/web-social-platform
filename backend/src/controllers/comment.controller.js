@@ -6,6 +6,7 @@ const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 const responseHandler = require("../utils/responseHandler");
 const { statusCodes } = require("../utils/statusCodes");
+const { refreshPresignedUrl } = require('../utils/minioHelper');
 
 const getComments = async (req, res) => {
   try {
@@ -40,6 +41,11 @@ const getComments = async (req, res) => {
              if(req.user) {
                  isLiked = !!await Like.findOne({ user: req.user.id, comment: comment._id });
              }
+             if (comment.author && comment.author.avatar && Buffer.isBuffer(comment.author.avatar)) {
+                 comment.author.avatar = `data:${comment.author.avatarType};base64,${comment.author.avatar.toString('base64')}`;
+             } else if (comment.author?.avatar?.key) {
+                 comment.author.avatar.url = await refreshPresignedUrl(comment.author.avatar.key);
+             }
              return { ...comment, likeCount, isLiked };
         })
     );
@@ -71,7 +77,7 @@ const getComments = async (req, res) => {
 const createComment = async (req, res) => {
   try {
     const { threadId } = req.params;
-    const { content } = req.body;
+    const { content, parentCommentId } = req.body;
     const userId = req.user.id;
 
     const parentThread = await Thread.findById(threadId);
@@ -81,12 +87,19 @@ const createComment = async (req, res) => {
       content,
       author: userId,
       thread: threadId,
+      parentComment: parentCommentId || null,
       media: null
     });
 
     const populatedComment = await Comment.findById(comment._id)
       .populate('author', '_id username name avatar avatarType')
       .lean();
+
+    if (populatedComment.author && populatedComment.author.avatar && Buffer.isBuffer(populatedComment.author.avatar)) {
+        populatedComment.author.avatar = `data:${populatedComment.author.avatarType};base64,${populatedComment.author.avatar.toString('base64')}`;
+    } else if (populatedComment.author?.avatar?.key) {
+        populatedComment.author.avatar.url = await refreshPresignedUrl(populatedComment.author.avatar.key);
+    }
 
     // Notification
     if (parentThread.author.toString() !== userId) {
@@ -114,7 +127,70 @@ const createComment = async (req, res) => {
   }
 };
 
+const updateComment = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { content } = req.body;
+        const userId = req.user.id;
+
+        const comment = await Comment.findById(commentId);
+        if (!comment) return responseHandler.notFound(res, "Comment");
+
+        if (comment.author.toString() !== userId) {
+            return responseHandler.forbidden(res, "You can only edit your own comments");
+        }
+
+        comment.content = content;
+        await comment.save();
+
+        const populatedComment = await Comment.findById(comment._id)
+          .populate('author', '_id username name avatar avatarType')
+          .lean();
+
+        if (populatedComment.author && populatedComment.author.avatar && Buffer.isBuffer(populatedComment.author.avatar)) {
+            populatedComment.author.avatar = `data:${populatedComment.author.avatarType};base64,${populatedComment.author.avatar.toString('base64')}`;
+        } else if (populatedComment.author?.avatar?.key) {
+             populatedComment.author.avatar.url = await refreshPresignedUrl(populatedComment.author.avatar.key);
+        }
+
+        return responseHandler.success(res, populatedComment, "Comment updated", statusCodes.SUCCESS);
+    } catch (error) {
+        console.error("Update comment error:", error);
+        return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
+const deleteComment = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const userId = req.user.id;
+
+        const comment = await Comment.findById(commentId);
+        if (!comment) return responseHandler.notFound(res, "Comment");
+
+        if (comment.author.toString() !== userId) {
+             return responseHandler.forbidden(res, "You can only delete your own comments");
+        }
+        
+        // Delete this comment and any direct replies (simple cascade)
+        await Comment.deleteMany({ parentComment: commentId });
+        await Comment.deleteOne({ _id: commentId });
+        await Like.deleteMany({ comment: commentId });
+
+        // Update post stats
+        const commentCount = await Comment.countDocuments({ thread: comment.thread });
+        broadcast('post_updated', { postId: comment.thread, commentCount });
+
+        return responseHandler.success(res, { commentId }, "Comment deleted", statusCodes.SUCCESS);
+    } catch (error) {
+        console.error("Delete comment error:", error);
+        return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+    }
+};
+
 module.exports = {
   getComments,
-  createComment
+  createComment,
+  updateComment,
+  deleteComment
 };

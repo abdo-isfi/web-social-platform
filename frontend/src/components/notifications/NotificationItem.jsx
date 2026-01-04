@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { useDispatch } from 'react-redux';
 import { acceptFollowRequest, rejectFollowRequest, followUser, unfollowUser } from '@/store/slices/userSlice';
+import { Link } from 'react-router-dom';
 
 export function Dot() {
   return (
@@ -83,17 +84,23 @@ export function NotificationItem({ notification, onClick }) {
             onClick={() => onClick(notification._id || notification.id)}
         >
             <div className="relative flex items-start gap-4 pe-3">
-                <UserAvatar
-                    className="size-10 rounded-full object-cover border border-border"
-                    user={notification.sender}
-                    width={40}
-                    height={40}
-                />
+                <Link to={`/profile/${notification.sender._id}`} onClick={(e) => e.stopPropagation()} className="shrink-0">
+                    <UserAvatar
+                        className="size-10 rounded-full object-cover border border-border"
+                        user={notification.sender}
+                        width={40}
+                        height={40}
+                    />
+                </Link>
                 <div className="flex-1 space-y-1">
                     <p className="text-left text-foreground/80 leading-snug">
-                        <span className="font-bold text-foreground hover:underline">
+                         <Link 
+                           to={`/profile/${notification.sender._id}`} 
+                           onClick={(e) => e.stopPropagation()}
+                           className="font-bold text-foreground hover:underline"
+                        >
                             {notification.sender?.name || notification.sender?.username || "Someone"}
-                        </span>{" "}
+                        </Link>{" "}
                         {notification.type === "FOLLOW_REQUEST" ? "sent you a follow request" : 
                          notification.type === "FOLLOW_ACCEPTED" ? "accepted your follow request" :
                          notification.type === "NEW_FOLLOWER" ? "followed you" :
