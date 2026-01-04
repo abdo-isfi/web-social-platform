@@ -89,7 +89,8 @@ const updateProfile = async (req, res) => {
       bio,
       location,
       website,
-      birthday
+      birthday,
+      showBirthday
     } = req.body;
 
     // Check username uniqueness
@@ -138,6 +139,9 @@ const updateProfile = async (req, res) => {
     if (location !== undefined) user.location = location;
     if (website !== undefined) user.website = website;
     if (birthday !== undefined) user.birthday = birthday;
+    if (showBirthday !== undefined) {
+      user.showBirthday = showBirthday === true || showBirthday === 'true';
+    }
 
     // Update banner
     if (req.files?.banner) {
@@ -170,7 +174,8 @@ const updateProfile = async (req, res) => {
       bio: user.bio,
       location: user.location,
       website: user.website,
-      birthday: user.birthday
+      birthday: user.birthday,
+      showBirthday: user.showBirthday
     };
 
     return responseHandler.success(
@@ -245,7 +250,8 @@ const getUserById = async (req, res) => {
         bio: user.bio,
         location: user.location,
         website: user.website,
-        birthday: user.birthday,
+        birthday: user.showBirthday || (req.user && req.user.id === userId) ? user.birthday : null,
+        showBirthday: user.showBirthday,
     };
 
     if (user.isPrivate && !isAuthorized) {

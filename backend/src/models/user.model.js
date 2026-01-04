@@ -69,6 +69,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  showBirthday: {
+    type: Boolean,
+    default: true
+  },
   avatar: {
     url: String,
     key: String

@@ -8,26 +8,43 @@ import { cn } from '@/lib/utils';
  */
 export function UserAvatar({ user, className, ...props }) {
   const { user: currentUser } = useSelector(state => state.auth);
+  const [hasError, setHasError] = React.useState(false);
   
   // Normalize IDs to handle both _id and id fields
   const getUserId = (u) => u?._id || u?.id;
+  const getUrl = (u) => {
+      const data = u?.avatar;
+      return typeof data === 'object' ? data?.url : data;
+  };
   
   const currentUserId = getUserId(currentUser);
   const targetUserId = getUserId(user);
-  
   const isCurrentUser = currentUserId && targetUserId && currentUserId === targetUserId;
   
-  // If it's the current user, prefer the avatar from the auth state (latest)
-  // Otherwise use the avatar provided in the user object
-  const avatarUrl = isCurrentUser ? (currentUser.avatar || user?.avatar) : user?.avatar;
-  const finalSrc = (typeof avatarUrl === 'object' ? avatarUrl?.url : avatarUrl) || "https://github.com/shadcn.png";
+  // Pick the best available URL. If Redux URL is failing, try the one from the prop
+  const reduxUrl = getUrl(currentUser);
+  const propUrl = getUrl(user);
+  
+  // If we are looking at the current user, we have two possible sources for the URL
+  // We prefer the prop if it's different (likely fresher from a fresh fetch)
+  let avatarUrl = isCurrentUser ? (propUrl || reduxUrl) : propUrl;
+
+  // Reset error state if the URL changes - this is key for when URLs are refreshed
+  React.useEffect(() => {
+    setHasError(false);
+  }, [avatarUrl]);
+
+  const finalSrc = (!hasError && avatarUrl) ? avatarUrl : "https://github.com/shadcn.png";
 
   return (
     <img
+      key={avatarUrl || 'default'}
       src={finalSrc}
       alt={user?.name || user?.username || 'User'}
-      className={cn("rounded-full object-cover", className)}
-      loading="lazy"
+      className={cn("rounded-full object-cover bg-muted ring-1 ring-border/10", className)}
+      onError={() => {
+        if (!hasError) setHasError(true);
+      }}
       {...props}
     />
   );

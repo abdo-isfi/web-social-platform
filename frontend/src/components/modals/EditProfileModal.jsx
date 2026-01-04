@@ -4,7 +4,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/button';
 import { AppInput } from '@/components/ui/app-input';
 import { updateUser } from '@/store/slices/authSlice';
-import { Camera, Eye, Trash2, Upload } from 'lucide-react';
+import { Camera, Eye, Trash2, Upload, Calendar as CalendarIcon, Lock, Globe, EyeOff } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
+import { format, parseISO, isValid } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export function EditProfileModal({ isOpen, onClose, onSuccess }) {
   const dispatch = useDispatch();
@@ -18,7 +23,8 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
     birthday: '',
     avatar: '',
     banner: '',
-    isPrivate: false
+    isPrivate: false,
+    showBirthday: true
   });
 
   useEffect(() => {
@@ -31,7 +37,8 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
         birthday: user.birthday || '',
         avatar: user.avatar || '',
         banner: user.banner || 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop',
-        isPrivate: user.isPrivate || false
+        isPrivate: user.isPrivate || false,
+        showBirthday: user.showBirthday !== false // Default to true if not specified
       });
     }
   }, [user, isOpen]);
@@ -41,6 +48,45 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Birthday Parts Logic
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const years = Array.from({ length: 121 }, (_, i) => new Date().getFullYear() - i);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  const getBirthdayPart = (part) => {
+    if (!formData.birthday) return "";
+    const date = new Date(formData.birthday);
+    if (isNaN(date.getTime())) return "";
+    
+    if (part === 'year') return date.getFullYear().toString();
+    if (part === 'month') return date.getMonth().toString();
+    if (part === 'day') return date.getDate().toString();
+    return "";
+  };
+
+  const handleBirthdayPartChange = (part, value) => {
+    let current = formData.birthday ? new Date(formData.birthday) : new Date();
+    if (isNaN(current.getTime())) current = new Date();
+
+    let y = current.getFullYear();
+    let m = current.getMonth();
+    let d = current.getDate();
+
+    if (part === 'year') y = parseInt(value);
+    if (part === 'month') m = parseInt(value);
+    if (part === 'day') d = parseInt(value);
+
+    const newDate = new Date(y, m, d);
+    setFormData(prev => ({
+      ...prev,
+      birthday: newDate.toISOString()
     }));
   };
 
@@ -145,6 +191,9 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
               src={formData.banner} 
               alt="Banner" 
               className="w-full h-full object-cover opacity-80"
+              onError={(e) => {
+                e.target.src = "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop";
+              }}
            />
            <div 
               onClick={() => setShowBannerMenu(!showBannerMenu)}
@@ -200,6 +249,9 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
                   src={formData.avatar || "https://github.com/shadcn.png"} 
                   alt="Profile" 
                   className="w-[100px] h-[100px] rounded-full object-cover border-4 border-background"
+                  onError={(e) => {
+                    e.target.src = "https://github.com/shadcn.png";
+                  }}
                 />
                 <div 
                     onClick={() => setShowPhotoMenu(!showPhotoMenu)}
@@ -285,28 +337,109 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
                 placeholder="Website"
               />
 
-              <div className="grid gap-2">
-                  <label className="text-sm font-medium">Birth date</label>
-                  <input
-                    type="date"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:[&::-webkit-calendar-picker-indicator]:invert"
-                    name="birthday"
-                    value={formData.birthday}
-                    onChange={handleChange}
-                  />
+              <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                      <label className="text-sm font-bold">Birth date</label>
+                      <button 
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, showBirthday: !prev.showBirthday }))}
+                        className={cn(
+                            "flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full transition-all duration-300",
+                            formData.showBirthday 
+                                ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                                : "bg-muted text-muted-foreground hover:bg-muted-foreground/20"
+                        )}
+                      >
+                          {formData.showBirthday ? (
+                              <><Eye className="w-3.5 h-3.5" /> Shown on profile</>
+                          ) : (
+                              <><EyeOff className="w-3.5 h-3.5" /> Hidden from profile</>
+                          )}
+                      </button>
+                  </div>
+                  
+                  <div className={cn(
+                      "grid grid-cols-3 gap-3 transition-opacity duration-300",
+                      !formData.showBirthday && "opacity-40 grayscale-[0.5] pointer-events-none"
+                  )}>
+                      {/* Month Select */}
+                      <div className="relative group">
+                          <select
+                              className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background/50 text-foreground font-medium text-sm appearance-none outline-none transition-all duration-300 hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 cursor-pointer"
+                              value={getBirthdayPart('month')}
+                              onChange={(e) => handleBirthdayPartChange('month', e.target.value)}
+                          >
+                              <option value="" disabled>Month</option>
+                              {months.map((m, i) => (
+                                  <option key={m} value={i}>{m}</option>
+                              ))}
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                      </div>
+
+                      {/* Day Select */}
+                      <div className="relative group">
+                          <select
+                              className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background/50 text-foreground font-medium text-sm appearance-none outline-none transition-all duration-300 hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 cursor-pointer"
+                              value={getBirthdayPart('day')}
+                              onChange={(e) => handleBirthdayPartChange('day', e.target.value)}
+                          >
+                              <option value="" disabled>Day</option>
+                              {days.map(d => (
+                                  <option key={d} value={d}>{d}</option>
+                              ))}
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                      </div>
+
+                      {/* Year Select */}
+                      <div className="relative group">
+                          <select
+                              className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background/50 text-foreground font-medium text-sm appearance-none outline-none transition-all duration-300 hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 cursor-pointer text-center"
+                              value={getBirthdayPart('year')}
+                              onChange={(e) => handleBirthdayPartChange('year', e.target.value)}
+                          >
+                              <option value="" disabled>Year</option>
+                              {years.map(y => (
+                                  <option key={y} value={y}>{y}</option>
+                              ))}
+                          </select>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </div>
+                      </div>
+                  </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/50">
-                  <div className="space-y-0.5">
-                      <label className="text-sm font-semibold">Private Profile</label>
-                      <p className="text-xs text-muted-foreground">Only your followers can see your posts.</p>
+              <div className={cn(
+                  "flex items-center justify-between p-5 rounded-[1.5rem] border transition-all duration-300",
+                  formData.isPrivate 
+                    ? "bg-primary/5 border-primary/20 shadow-sm shadow-primary/5" 
+                    : "bg-muted/20 border-border/50"
+              )}>
+                  <div className="flex gap-4">
+                      <div className={cn(
+                          "w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-300",
+                          formData.isPrivate ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                          {formData.isPrivate ? <Lock className="w-5 h-5" /> : <Globe className="w-5 h-5" />}
+                      </div>
+                      <div className="space-y-0.5">
+                          <label className="text-sm font-bold block">Private Profile</label>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                              {formData.isPrivate 
+                                ? "Only approved followers can see your posts." 
+                                : "Anyone can see your posts and profile."}
+                          </p>
+                      </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    name="isPrivate"
+                  <Switch 
                     checked={formData.isPrivate}
-                    onChange={handleChange}
-                    className="w-5 h-5 accent-primary cursor-pointer"
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isPrivate: checked }))}
                   />
               </div>
            </div>

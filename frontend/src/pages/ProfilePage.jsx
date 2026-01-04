@@ -341,10 +341,21 @@ export function ProfilePage() {
           <div className="h-48 sm:h-52 md:h-60 w-full relative group overflow-hidden">
             <div className="w-full h-full relative rounded-t-[2.5rem] overflow-hidden border border-border/50 border-b-0">
               {profile.banner ? (
-                <img src={profile.banner} alt="Banner" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-background transition-colors" />
-              )}
+                <img 
+                  key={profile.banner}
+                  src={profile.banner} 
+                  alt="Banner" 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 bg-muted" 
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-background transition-colors" 
+                style={{ display: profile.banner ? 'none' : 'block' }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
             </div>
           </div>
@@ -416,6 +427,12 @@ export function ProfilePage() {
                       >
                         {profile.website.replace(/^https?:\/\//, '')}
                       </a>
+                    </div>
+                  )}
+                  {profile.birthday && profile.showBirthday && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 rounded-full border border-border/10">
+                      <Cake className="w-4 h-4 text-primary/70" />
+                      <span>Born {new Date(profile.birthday).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                   )}
                   {profile.createdAt && (
