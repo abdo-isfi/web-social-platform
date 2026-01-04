@@ -11,33 +11,12 @@ import { postService } from '@/services/post.service';
 import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { setFeedMode } from '@/store/slices/uiSlice';
-import { cn } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import { PostComments } from '@/components/feed/PostComments';
 import { EditPostModal } from '@/components/modals/EditPostModal';
 import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
 
-// Helper function to calculate time ago
-function getTimeAgo(date) {
-  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-  
-  const intervals = {
-    year: 31536000,
-    month: 2592000,
-    week: 604800,
-    day: 86400,
-    hour: 3600,
-    minute: 60,
-  };
 
-  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
-    const interval = Math.floor(seconds / secondsInUnit);
-    if (interval >= 1) {
-      return `${interval}${unit[0]}`;
-    }
-  }
-
-  return 'Just now';
-}
 
 export default function Feed() {
   const dispatch = useDispatch();
@@ -233,7 +212,7 @@ export default function Feed() {
                     name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
                     username: displayPost.author?.username || 'unknown',
                     avatar: authorAvatar,
-                    timeAgo: displayPost.createdAt ? getTimeAgo(displayPost.createdAt) : 'Just now',
+                    timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                   }}
                   content={{
                     text: displayPost.content || displayPost.text || '',

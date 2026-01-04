@@ -3,12 +3,10 @@ import { Navbar } from './Navbar';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 import { AuthModal } from '@/components/modals/AuthModal';
-import { AnimatedBackground } from './AnimatedBackground';
 
 export function AppLayout({ children }) {
   return (
     <div className="min-h-screen text-foreground font-sans selection:bg-primary/20 relative">
-      <AnimatedBackground />
 
       <Navbar />
       
