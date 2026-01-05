@@ -16,7 +16,8 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
   const { user } = useSelector(state => state.auth);
   
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     bio: '',
     location: '',
     website: '',
@@ -30,7 +31,8 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         bio: user.bio || '',
         location: user.location || '',
         website: user.website || '',
@@ -299,16 +301,30 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
                     </>
                 )}
               </div>
-           </div>
-           
-           <div className="pt-[60px] pb-6 space-y-4">
-              <AppInput
-                label="Name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Name"
-              />
+            </div>
+            
+            <div className="mt-[70px] px-1">
+                <h2 className="text-2xl font-black text-foreground leading-none">{user?.firstName} {user?.lastName}</h2>
+                <p className="text-primary font-bold text-sm mt-1">{user?.handle}</p>
+            </div>
+            
+            <div className="pt-6 pb-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <AppInput
+                  label="First Name"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="First Name"
+                />
+                <AppInput
+                  label="Last Name"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Last Name"
+                />
+              </div>
               
               <div className="space-y-2">
                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Bio</label>

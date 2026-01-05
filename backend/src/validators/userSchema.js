@@ -25,16 +25,6 @@ const userSchema = Joi.object({
       'any.required': 'Last name is required'
     }),
 
-  username: Joi.string()
-    .min(3)
-    .max(50)
-    .trim()
-    .pattern(/^[a-zA-Z0-9._]+$/)
-    .messages({
-      'string.min': 'Username must be at least 3 characters',
-      'string.max': 'Username must be less than 50 characters',
-      'string.pattern.base': 'Username can only contain letters, numbers, dots and underscores'
-    }),
 
   email: Joi.string()
     .required()
@@ -66,7 +56,6 @@ isPrivate: Joi.boolean()
 const createUserSchema = userSchema.keys({
   firstName: userSchema.extract('firstName'),
   lastName: userSchema.extract('lastName'),
-  username: Joi.optional(), // Username is generated backend-side if not provided
   email: userSchema.extract('email'),
   password: userSchema.extract('password'),
   isPrivate: userSchema.extract('isPrivate')
@@ -74,11 +63,6 @@ const createUserSchema = userSchema.keys({
 
 // Schema for user update (no password required)
 const updateUserSchema = Joi.object({
-  username: Joi.string()
-    .min(3)
-    .max(30)
-    .trim()
-    .pattern(/^[a-zA-Z0-9_]+$/),
 
   email: Joi.string()
     .email()

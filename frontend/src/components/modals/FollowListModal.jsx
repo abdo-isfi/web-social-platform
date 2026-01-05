@@ -106,17 +106,21 @@ export function FollowListModal({ isOpen, onClose, userId, type, title }) {
               <div 
                 key={user._id}
                 onClick={() => handleUserClick(user._id)}
-                className="flex items-center justify-between p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer transition-all animate-in fade-in slide-in-from-bottom-2 duration-300"
+                className="flex items-center justify-between p-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer transition-all animate-in fade-in slide-in-from-bottom-2 duration-300 group/user"
               >
                 <div className="flex items-center gap-3">
                   <UserAvatar 
                     user={user}
                     className="w-11 h-11 rounded-full object-cover border border-border/50 shadow-sm"
                   />
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm leading-tight hover:underline">{user.name || user.username}</span>
-                    <span className="text-xs text-muted-foreground leading-tight">@{user.username}</span>
-                  </div>
+                  <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate group-hover/user:text-primary transition-colors">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
+                      </div>
                 </div>
 
                 {currentUser && currentUser._id !== user._id && (

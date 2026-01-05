@@ -1,50 +1,45 @@
+/**
+ * notificationHelper.js - The Alert Polisher
+ * 
+ * When someone likes your post, we need to show YOU their name,
+ * their photo, and maybe the content they liked. 
+ * This helper "populates" those details so the frontend has everything it needs.
+ */
+
 const Notification = require('../models/notification.model');
 const Follow = require('../models/follower.model');
 
 /**
- * Populates a notification with sender and thread details and formats avatars.
- * @param {string} notificationId - The ID of the notification to populate.
- * @returns {Promise<Object>} The populated and formatted notification object.
+ * Deep-fetches names, photos, and follows for an alert.
  */
 const populateNotification = async (notificationId) => {
   try {
+    // 1. Fetch the basic alert and grab 'sender' details (name/avatar)
     const notification = await Notification.findById(notificationId)
-      .populate('sender', '_id name username avatar avatarType')
+      .populate('sender', '_id firstName lastName avatar avatarType')
       .populate('thread', 'content')
       .lean();
 
     if (!notification) return null;
 
-    // Check relationship statuses
-    // 1. Does the receiver of the notification follow the sender back?
+    // 2. Add "Social Context": Do you already follow the person who liked your post?
     const followBack = await Follow.findOne({
       follower: notification.receiver,
       following: notification.sender?._id
     });
     
-    // 2. What is the status of the sender following the receiver?
-    const senderFollow = await Follow.findOne({
-      follower: notification.sender?._id,
-      following: notification.receiver
-    });
-
     notification.isFollowingSender = followBack?.status === 'ACCEPTED';
-    notification.followRequestStatus = senderFollow?.status || null;
 
-    if (notification.sender && notification.sender.avatar && Buffer.isBuffer(notification.sender.avatar)) {
-        notification.sender.avatar = `data:${notification.sender.avatarType};base64,${notification.sender.avatar.toString('base64')}`;
-    } else if (notification.sender?.avatar?.key) {
+    // 3. Format their profile picture (MinIO or Base64)
+    if (notification.sender?.avatar?.key) {
         const { refreshPresignedUrl } = require('./minioHelper');
         notification.sender.avatar.url = await refreshPresignedUrl(notification.sender.avatar.key);
     }
 
     return notification;
   } catch (error) {
-    console.error('Error populating notification:', error);
     return null;
   }
 };
 
-module.exports = {
-  populateNotification
-};
+module.exports = { populateNotification };

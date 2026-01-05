@@ -43,24 +43,37 @@ const search = async (req, res) => {
       )
       .sort({ score: { $meta: "textScore" } })
       .limit(10)
-      .select('_id name username avatar avatarType isPrivate')
+      .select('_id firstName lastName avatar avatarType isPrivate')
       .lean();
 
       // 2. Regex Search (for partial matches like "ab" -> "abdo")
       const regexUsers = await User.find({
         $or: [
-          { name: { $regex: regex } },
-          { username: { $regex: regex } },
           { firstName: { $regex: regex } },
-          { lastName: { $regex: regex } }
+          { lastName: { $regex: regex } },
+          { email: { $regex: regex } }
         ],
         _id: { $nin: textUsers.map(u => u._id) }
       })
       .limit(10)
-      .select('_id name username avatar avatarType isPrivate')
+      .select('_id avatar avatarType isPrivate firstName lastName followersCount email')
       .lean();
 
-      users = [...textUsers, ...regexUsers].slice(0, 15);
+      let combinedUsers = [...textUsers, ...regexUsers];
+
+      // Map to combine firstName and lastName into a 'name' field if 'name' is not present or empty
+      const formattedCombinedUsers = combinedUsers.map(u => {
+        const user = { ...u };
+        user.name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const base = (user.firstName || '' + user.lastName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const suffix = user._id ? user._id.toString().slice(-4) : '';
+        user.handle = `@${base}${suffix}`;
+        // Remove firstName and lastName if not explicitly requested by frontend
+        // though keeping them for now is safer.
+        return user;
+      });
+
+      users = formattedCombinedUsers.slice(0, 15);
     }
 
     // Search Threads
@@ -71,7 +84,7 @@ const search = async (req, res) => {
       )
       .sort({ score: { $meta: "textScore" }, createdAt: -1 })
       .limit(20)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
       
       if (threads.length < 5) {
@@ -81,7 +94,7 @@ const search = async (req, res) => {
              _id: { $nin: threads.map(t => t._id) }
           })
           .limit(10)
-          .populate('author', '_id username name avatar avatarType')
+          .populate('author', '_id firstName lastName avatar avatarType')
           .lean();
           threads = [...threads, ...regexThreads];
       }

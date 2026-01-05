@@ -1,74 +1,53 @@
+/**
+ * responseHandler.js - The Unified Messenger
+ * 
+ * Instead of manually writing res.status(200).json(...) in every single controller,
+ * we use this helper. It ensures every API response from our server 
+ * has the EXACT SAME structure (success, message, data).
+ */
+
 const responseHandler = {
+  // SUCCESS: Use this for 200 OK, 201 Created, etc.
   success: (res, data = null, message = null, statusCode = 200) => {
     const messages = {
       200: 'Success',
       201: 'Created successfully',
       202: 'Updated successfully',
-      203: 'Deleted successfully',
-      204: 'No content',
-      205: 'Reset content',
-      206: 'Partial content'
+      203: 'Deleted successfully'
     };
 
-    const response = {
+    return res.status(statusCode).json({
       success: true,
       message: message || messages[statusCode] || 'Operation successful',
       data: data
-    };
-
-    return res.status(statusCode).json(response);
+    });
   },
 
+  // ERROR: Use this for 400 Bad Request, 500 Server Error, etc.
   error: (res, message = 'Something went wrong', statusCode = 500, errors = null) => {
-    const messages = {
-      400: 'Bad request',
-      401: 'Unauthorized',
-      403: 'Forbidden',
-      404: 'Not found',
-      409: 'Conflict',
-      422: 'Validation error',
-      500: 'Internal server error',
-      502: 'Bad gateway',
-      503: 'Service unavailable'
-    };
-
-    const response = {
+    return res.status(statusCode).json({
       success: false,
-      message: message || messages[statusCode] || 'An error occurred',
-      statusCode: statusCode,
-      errors: errors
-    };
-
-    return res.status(statusCode).json(response);
-  },
-
-  validationError: (res, errors) => {
-    return res.status(422).json({
-      success: false,
-      message: 'Validation failed',
+      message: message,
+      statusCode: statusCode, // Useful for the frontend to know the exact error type
       errors: errors
     });
+  },
+
+  // PRESETS: Shortcut functions for common errors
+  validationError: (res, errors) => {
+    return res.status(422).json({ success: false, message: 'Validation failed', errors });
   },
 
   notFound: (res, resource = 'Resource') => {
-    return res.status(404).json({
-      success: false,
-      message: `${resource} not found`
-    });
+    return res.status(404).json({ success: false, message: `${resource} not found` });
   },
 
   unauthorized: (res, message = 'Unauthorized access') => {
-    return res.status(401).json({
-      success: false,
-      message: message
-    });
+    return res.status(401).json({ success: false, message });
   },
 
   forbidden: (res, message = 'Forbidden') => {
-    return res.status(403).json({
-      success: false,
-      message: message
-    });
+    return res.status(403).json({ success: false, message });
   }
 };
 

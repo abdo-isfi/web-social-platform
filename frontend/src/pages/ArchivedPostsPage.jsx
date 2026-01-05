@@ -151,7 +151,12 @@ export function ArchivedPostsPage() {
           </div>
           {posts.map(post => (
             <SocialCard key={post._id || post.id} id={post._id || post.id}
-              author={{ _id: post.author?._id || post.author?.id, name: post.author?.name || post.author?.username || 'Unknown', username: post.author?.username || 'unknown', avatar: post.author?.avatar || 'https://github.com/shadcn.png', timeAgo: post.updatedAt ? getTimeAgo(post.updatedAt) : 'Just now' }}
+                  author={{
+                    _id: post.author?._id || post.author?.id,
+                    name: `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim() || 'Unknown',
+                    avatar: post.author?.avatar || 'https://github.com/shadcn.png',
+                    timeAgo: post.createdAt ? formatRelativeTime(post.createdAt) : 'Just now',
+                  }}
               content={{ text: post.content || '', media: post.media ? (Array.isArray(post.media) ? post.media : [post.media]) : [], link: post.link }}
               engagement={{ likes: post.likeCount || 0, comments: post.commentCount || 0, shares: post.repostCount || 0, isLiked: post.isLiked || false, isBookmarked: post.isBookmarked || false }}
               permissions={post.permissions}

@@ -1,40 +1,42 @@
+/**
+ * like.controller.js - Engagement Logic
+ */
+
 const Like = require('../models/like.model');
 const Thread = require('../models/thread.model');
 const Comment = require('../models/comment.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
-
 const Notification = require('../models/notification.model');
 const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 
+/**
+ * HELPER: Update Like Count in Real-time
+ * Uses WebSockets to tell the frontend exactly how many likes a post has
+ * without the user having to refresh the page.
+ */
 const updateLikeCount = async (targetId, type) => {
     try {
-        const count = await Like.countDocuments({ 
-            [type]: targetId 
-        });
-        
+        const count = await Like.countDocuments({ [type]: targetId });
+        // 'broadcast' sends the message to EVERY connected user
         if (type === 'thread') {
-            broadcast('post_updated', { 
-                postId: targetId, 
-                likeCount: count 
-            });
+            broadcast('post_updated', { postId: targetId, likeCount: count });
         } else {
-            broadcast('comment_updated', { 
-                commentId: targetId, 
-                likeCount: count 
-            });
+            broadcast('comment_updated', { commentId: targetId, likeCount: count });
         }
-    } catch (error) {
-        console.error("Error broadcasting like count:", error);
-    }
+    } catch (error) { console.error(error); }
 };
 
+/**
+ * LIKE A THREAD OR COMMENT
+ */
 const likeThread = async (req, res) => {
   try {
     const userId = req.user.id; 
-    const { threadId } = req.params; // this can be threadId or commentId
+    const { threadId } = req.params; // This parameter acts as the ID for the target
 
+    // 1. Identify what we are liking (A main Post or a Comment?)
     let targetType = 'thread';
     let target = await Thread.findOne({ _id: threadId, isArchived: false });
     
@@ -47,6 +49,7 @@ const likeThread = async (req, res) => {
         }
     }
 
+    // 2. Prevent double-liking
     const likeQuery = { user: userId };
     if (targetType === 'thread') likeQuery.thread = threadId;
     else likeQuery.comment = threadId;
@@ -56,17 +59,16 @@ const likeThread = async (req, res) => {
          return responseHandler.error(res, "You have already liked this", statusCodes.CONFLICT);
     }
 
+    // 3. Create the Like document
     const like = new Like({
       user: userId,
       thread: targetType === 'thread' ? threadId : null,
       comment: targetType === 'comment' ? threadId : null
     });
-
     await like.save();
 
-    // Notification
+    // 4. NOTIFICATION: Alert the author
     if (target.author.toString() !== userId) {
-        // Consolidate notification: find existing like notif from this sender for this target
         const notifQuery = {
           type: 'LIKE',
           receiver: target.author,
@@ -75,21 +77,16 @@ const likeThread = async (req, res) => {
         if (targetType === 'thread') notifQuery.thread = threadId;
         else notifQuery.comment = threadId;
 
+        // Either update an existing notification (if they unliked/reliked) or create new
         const existingNotif = await Notification.findOne(notifQuery);
-
         let notif;
         if (existingNotif) {
           existingNotif.isRead = false;
           existingNotif.updatedAt = new Date();
           notif = await existingNotif.save();
         } else {
-          const notifData = {
-            ...notifQuery,
-            isRead: false
-          };
-          if (targetType === 'comment') {
-            notifData.thread = target.thread; // Context
-          }
+          const notifData = { ...notifQuery, isRead: false };
+          if (targetType === 'comment') notifData.thread = target.thread; 
           notif = await Notification.create(notifData);
         }
 
@@ -97,46 +94,26 @@ const likeThread = async (req, res) => {
         emitToUser(target.author, 'notification:new', populatedNotif || notif);
     }
 
-    return responseHandler.success(
-      res,
-      like,
-      "Liked successfully",
-      statusCodes.CREATED
-    );
-    
-    // Real-time update (fire and forget)
+    // 5. Trigger real-time refresh (Fire and Forget)
     updateLikeCount(threadId, targetType);
 
-  } catch (error) {
-    if (error.code === 11000) {
-      return responseHandler.error(
-        res,
-        "You have already liked this",
-        statusCodes.CONFLICT
-      );
-    }
+    return responseHandler.success(res, like, "Liked successfully", statusCodes.CREATED);
 
-    console.error("Like error:", error);
-    return responseHandler.error(
-      res,
-      null,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+  } catch (error) {
+    if (error.code === 11000) return responseHandler.error(res, "Already liked", statusCodes.CONFLICT);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
+/**
+ * UNLIKE A THREAD OR COMMENT
+ */
 const unlikeThread = async (req, res) => {
   try {
     const userId = req.user.id;
     const { threadId } = req.params;
 
-    // We try to find match for thread or comment
-    // Since we don't know type, we can populate query for both or check target
-    // Simplest: Check existence of target to know type, then delete like.
-    
-    // Actually, we can just try to delete where (thread=id OR comment=id) AND user=userId
-    // But we need to be precise.
-    
+    // Delete the Like record
     const like = await Like.findOneAndDelete({
         user: userId,
         $or: [{ thread: threadId }, { comment: threadId }]
@@ -146,51 +123,35 @@ const unlikeThread = async (req, res) => {
       return responseHandler.notFound(res, "Like");
     }
 
-    // Clean up notification
+    // Clean up notifications: remove the "User liked your post" alert
     await Notification.deleteMany({
       sender: userId,
       $or: [{ thread: threadId }, { comment: threadId }],
       type: 'LIKE'
     });
 
-    return responseHandler.success(
-      res,
-      null,
-      "Like removed successfully",
-      statusCodes.DELETED
-    );
+    // Real-time update: decrease the count instantly in the UI
+    if (like.thread) updateLikeCount(like.thread, 'thread');
+    else if (like.comment) updateLikeCount(like.comment, 'comment');
 
-    // Real-time update
-    // We need to know the type. Based on previous logic, we don't know distinctively unless we query.
-    // But updateLikeCount queries by count. 
-    // Optimization: check if 'target.author' was populated implies we fetched 'target'. 
-    // Note: unlikeThread doesn't fetch 'target' in my code previously shown, it does findOneAndDelete.
-    // I need to check what findOneAndDelete returns. It returns the deleted document.
-    // The deleted document has 'thread' or 'comment' fields set.
-    if (like.thread) {
-        updateLikeCount(like.thread, 'thread');
-    } else if (like.comment) {
-        updateLikeCount(like.comment, 'comment');
-    }
+    return responseHandler.success(res, null, "Like removed successfully", statusCodes.DELETED);
 
   } catch (error) {
-    console.error("Unlike error:", error);
-    return responseHandler.error(
-      res,
-      null,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
+/**
+ * FETCH MY LIKED POSTS
+ * Used for the "Likes" tab on the user's profile.
+ */
 const getUserLikedThreads = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page ,limit  } = req.pagination;
+    const { page, limit } = req.pagination;
     const skip = (page - 1) * limit;
 
-    // Get likes by user and paginate
-    // Only fetching liked THREADS for now, as profile usually shows that.
+    // Find all 'Like' records by this user that point to a Thread
     const likes = await Like.find({ user: userId, thread: { $ne: null } })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -198,10 +159,11 @@ const getUserLikedThreads = async (req, res) => {
       .populate({
         path: 'thread',
         match: { isArchived: false }, 
-        populate: { path: 'author', select: 'username name avatar avatarType' } 
+        populate: { path: 'author', select: 'firstName lastName avatar avatarType' } 
       })
       .lean();
 
+    // Map the likes back into a list of Thread objects
     const likedThreads = likes
       .filter(like => like.thread !== null)
       .map(like => ({
@@ -210,32 +172,16 @@ const getUserLikedThreads = async (req, res) => {
       }));
 
     const totalLikes = await Like.countDocuments({ user: userId, thread: { $ne: null } });
-
     const totalPages = Math.ceil(totalLikes / limit);
 
-    return responseHandler.success(
-      res,
-      {
+    return responseHandler.success(res, {
         threads: likedThreads,
-        pagination: {
-          totalLikes,
-          totalPages,
-          currentPage: page,
-          pageSize: limit
-        }
-      },
-      "Threads liked by you fetched successfully",
-      statusCodes.SUCCESS
-    );
+        pagination: { totalLikes, totalPages, currentPage: page, pageSize: limit }
+    }, "Threads liked by you fetched successfully", statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error("Get user liked threads error:", error);
-    return responseHandler.error(
-      res,
-      null,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
-module.exports = { unlikeThread , likeThread , getUserLikedThreads };
+module.exports = { unlikeThread, likeThread, getUserLikedThreads };

@@ -1,10 +1,18 @@
+/**
+ * user.model.js - The User Blueprint
+ * 
+ * This file defines what a "User" looks like in our database.
+ * Think of it as a "Registration Form" definition.
+ */
+
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
+  // Basic Identity
   firstName: {
     type: String,
     required: true,
-    trim: true,
+    trim: true, // Removes accidental spaces (" John " -> "John")
     minlength: 2,
     maxlength: 30
   },
@@ -14,21 +22,6 @@ const userSchema = new mongoose.Schema({
     trim: true,
     minlength: 2,
     maxlength: 30
-  },
-  name: {
-    type: String,
-    trim: true,
-    default: '',
-    maxlength: 60
-  },
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    minlength: 3,
-    maxlength: 30,
-    index: true
   },
   email: {
     type: String,
@@ -41,11 +34,13 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    minlength: 6
+    minlength: 6 // Security best practice
   },
+
+  // Privacy & Profile
   isPrivate: {
     type: Boolean,
-    default: false
+    default: false // If true, follow requests must be approved
   },
   bio: {
     type: String,
@@ -73,9 +68,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+
+  // Media (Avatar & Banner)
   avatar: {
-    url: String,
-    key: String
+    url: String, // Link to the image in MinIO
+    key: String  // The unique ID of the file in MinIO (for deletion)
   },
   avatarType: {
     type: String,
@@ -89,9 +86,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+
+  // Relations & Stats
   bookmarks: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Thread'
+    ref: 'Thread' // Array of references to Threads the user saved
   }],
   followersCount: {
     type: Number,
@@ -103,16 +102,34 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+
+  // Authentication Security
   refreshToken: {
     type: String,
-    default: null
+    default: null // Used for persistent login sessions
   }
 }, {
-  timestamps: true
+  timestamps: true // Automatically adds 'createdAt' and 'updatedAt'
 });
 
-// Text index for user search
-userSchema.index({ name: 'text', username: 'text', firstName: 'text', lastName: 'text', email: 'text' });
+// SEARCH INDEX: Allows us to search for users by name or email efficiently
+userSchema.index({ firstName: 'text', lastName: 'text', email: 'text' });
+
+// Virtual for full name
+userSchema.virtual('fullName').get(function() {
+  return `${this.firstName || ''} ${this.lastName || ''}`.trim();
+});
+
+// Virtual for handle (e.g., @john_doe1234)
+userSchema.virtual('handle').get(function() {
+  const base = `${this.firstName || ''}${this.lastName || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const suffix = this._id ? this._id.toString().slice(-4) : '';
+  return `@${base}${suffix}`;
+});
+
+// Ensure virtuals are serialized
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;

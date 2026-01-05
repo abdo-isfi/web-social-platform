@@ -1,3 +1,12 @@
+/**
+ * follower.controller.js - The Relationship Manager
+ * 
+ * This controller manages the complex logic of following users,
+ * especially handling "Private" accounts that require manual approval.
+ * It orchestrates interactions between Follow, User, and Notification models,
+ * and integrates with real-time updates via WebSockets.
+ */
+
 const Follow = require('../models/follower.model');
 const User = require('../models/user.model');
 const Notification = require('../models/notification.model');
@@ -7,21 +16,21 @@ const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 const { refreshPresignedUrl } = require('../utils/minioHelper');
 
+/**
+ * HELPER: Sync Stats via WebSockets
+ * Updates follower/following counts for profiles in real-time across connected clients.
+ * @param {string} userId - The ID of the user whose stats need to be broadcasted.
+ */
 const broadcastUserStats = async (userId) => {
     try {
         const user = await User.findById(userId).select('followersCount followingCount');
         if (user) {
-            broadcast('user_updated', { 
-                userId: user._id.toString(), 
-                updates: { 
-                    followersCount: user.followersCount, 
-                    followingCount: user.followingCount 
-                } 
+            broadcast('user_updated', {
+                userId: user._id.toString(),
+                updates: { followersCount: user.followersCount, followingCount: user.followingCount }
             });
         }
-    } catch (error) {
-        console.error("Error broadcasting user stats:", error);
-    }
+    } catch (error) { console.error(error); }
 };
 
 /**
@@ -36,7 +45,7 @@ const getFollowers = async (req, res) => {
       following: userId,
       status: 'ACCEPTED'
     })
-    .populate('follower', '_id name username avatar avatarType bio')
+    .populate('follower', '_id firstName lastName avatar avatarType bio')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -82,7 +91,7 @@ const getFollowing = async (req, res) => {
       follower: userId,
       status: 'ACCEPTED'
     })
-    .populate('following', '_id name username avatar avatarType bio')
+    .populate('following', '_id firstName lastName avatar avatarType bio')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -118,104 +127,53 @@ const getFollowing = async (req, res) => {
 
 /**
  * SEND FOLLOW REQUEST
+ * Handles both instant follows (public) and approval requests (private).
  */
 const sendFollowRequest = async (req, res) => {
   try {
     const followerId = req.user.id;
     const { followingId } = req.body;
 
-    if (!followingId) {
-      return responseHandler.error(
-        res,
-        "Following user ID is required",
-        statusCodes.BAD_REQUEST
-      );
-    }
-
-    if (followerId === followingId) {
-      return responseHandler.error(
-        res,
-        "You cannot follow yourself",
-        statusCodes.BAD_REQUEST
-      );
-    }
+    if (followerId === followingId) return responseHandler.error(res, "Cannot follow self", statusCodes.BAD_REQUEST);
 
     const followingUser = await User.findById(followingId);
-    if (!followingUser) {
-      return responseHandler.notFound(res, "User to follow");
-    }
+    if (!followingUser) return responseHandler.notFound(res, "User to follow");
 
-    const existingFollow = await Follow.findOne({
-      follower: followerId,
-      following: followingId
-    });
+    // Check if a relationship already exists (no double follows)
+    const existingFollow = await Follow.findOne({ follower: followerId, following: followingId });
+    if (existingFollow) return responseHandler.error(res, `Already ${existingFollow.status.toLowerCase()}`, statusCodes.CONFLICT);
 
-    if (existingFollow) {
-      return responseHandler.error(
-        res,
-        `Follow request already ${existingFollow.status.toLowerCase()}`,
-        statusCodes.CONFLICT
-      );
-    }
-
+    // LOGIC: If target is private, status is PENDING. Otherwise, ACCEPTED.
     const status = followingUser.isPrivate ? "PENDING" : "ACCEPTED";
 
-    const followRequest = await Follow.create({
-      follower: followerId,
-      following: followingId,
-      status
-    });
+    const followRequest = await Follow.create({ follower: followerId, following: followingId, status });
 
-    // Atomic increment counts only if followed successfully
+    /**
+     * ATOMIC UPDATES
+     * If accepted instantly, increment counts for both users.
+     */
     if (status === "ACCEPTED") {
       await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
       await User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } });
-      
-      // Real-time updates
       broadcastUserStats(followerId);
       broadcastUserStats(followingId);
     }
 
-    // Consolidate notification: find existing follow-related notif from this sender to receiver
-    const existingNotif = await Notification.findOne({
-      sender: followerId,
-      receiver: followingId,
-      type: { $in: ["FOLLOW_REQUEST", "NEW_FOLLOWER"] }
-    });
-
-    let notification;
-    if (existingNotif) {
-      existingNotif.type = status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER";
-      existingNotif.isRead = false;
-      existingNotif.updatedAt = new Date();
-      notification = await existingNotif.save();
-    } else {
-      notification = await Notification.create({
+    // NOTIFICATION
+    const notification = await Notification.create({
         type: status === "PENDING" ? "FOLLOW_REQUEST" : "NEW_FOLLOWER",
         receiver: followingId,
         sender: followerId,
-        thread: null,
         isRead: false
-      });
-    }
+    });
 
     const populatedNotif = await populateNotification(notification._id);
     emitToUser(followingId, "notification:new", populatedNotif || notification);
 
-    return responseHandler.success(
-      res,
-      followRequest,
-      "Followed successfully",
-      statusCodes.CREATED
-    );
+    return responseHandler.success(res, followRequest, "Followed successfully", statusCodes.CREATED);
 
   } catch (error) {
-    console.error("Send follow request error:", error);
-    return responseHandler.error(
-      res,
-      null,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

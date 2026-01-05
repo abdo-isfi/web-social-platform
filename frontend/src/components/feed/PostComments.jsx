@@ -230,7 +230,7 @@ function CommentItem({ comment, onReply, handleLikeCommment, isReply, currentUse
                 <div className="flex items-center gap-2 justify-between">
                     <div className="flex items-center gap-2">
                         <Link to={`/profile/${comment.author?._id || comment.author?.id}`} className="text-sm font-semibold text-foreground hover:underline">
-                          {comment.author?.name}
+                          {comment.author?.firstName} {comment.author?.lastName}
                         </Link>
                         <span className="text-xs text-muted-foreground/60">
                             {formatRelativeTime(comment.createdAt)}

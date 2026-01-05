@@ -1,37 +1,49 @@
+/**
+ * user.controller.js - The User Registry
+ * 
+ * Handles Profile lookups, updates, and privacy settings.
+ */
+
 const User = require('../models/user.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const hashPassword = require('../utils/hashPassword'); 
 const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
 
+/**
+ * CREATE USER (Legacy/Admin Utility)
+ * Note: Actual registration usually happens in auth.controller.js
+ * 
+ * This function allows for the creation of a new user, primarily for administrative purposes
+ * or legacy systems. It includes validation for existing email/username and handles
+ * password hashing and optional avatar uploads.
+ * 
+ * @param {Object} req - The request object, containing user data in req.body and optional file in req.file.
+ * @param {Object} res - The response object.
+ * @returns {Promise<void>} - Sends a success or error response.
+ */
 const createUser = async (req, res) => {
   try {
-    const { name, username, email, password, isPrivate } = req.body;
+    const { firstName, lastName, email, password, isPrivate } = req.body;
 
-    const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { username }]
-    });
+    // Check if a user with the given email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
 
     if (existingUser) {
-      const field = existingUser.email === email.toLowerCase() ? 'Email' : 'Username';
-      return responseHandler.error(
-        res,
-        `${field} already exists`,
-        statusCodes.CONFLICT
-      );
+      return responseHandler.error(res, `Email already exists`, statusCodes.CONFLICT);
     }
 
-    // Hash the password
     const hashedPassword = await hashPassword(password);
 
     const userData = {
-      name: name || '',
-      username,
+      firstName,
+      lastName,
       email: email.toLowerCase(),
       password: hashedPassword,
       isPrivate: isPrivate || false
     };
 
+    // Handling avatar upload via Buffer
     if (req.file) {
       const fileName = generateUniqueFileName(req.file.originalname);
       const { url, key } = await uploadBufferToMinIO(req.file.buffer, fileName, req.file.mimetype);
@@ -42,108 +54,43 @@ const createUser = async (req, res) => {
     const user = new User(userData);
     await user.save();
 
-    // Prepare response
-    const userResponse = {
-      _id: user._id,
-      name: user.name,
-      username: user.username,
-      email: user.email,
-      isPrivate: user.isPrivate,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      avatar: user.avatar?.url || null,
-      banner: user.banner?.url || null,
-    };
-
-    return responseHandler.success(
-      res,
-      userResponse,
-      'User created successfully',
-      statusCodes.CREATED
-    );
+    return responseHandler.success(res, user, 'User created successfully', statusCodes.CREATED);
 
   } catch (error) {
-    return responseHandler.error(
-      res,
-      'Failed to create user',
-      statusCodes.INTERNAL_SERVER_ERROR,
-      process.env.NODE_ENV === 'development' ? error.message : undefined
-    );
+    return responseHandler.error(res, 'Failed to create user', statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
+/**
+ * UPDATE PROFILE
+ * Updates Bio, Name, Privacy, Avatar, and Banner.
+ */
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const user = await User.findById(userId);
-    if (!user) {
-      return responseHandler.notFound(res, 'User');
-    }
+    if (!user) return responseHandler.notFound(res, 'User');
 
-    const {
-      username,
-      email,
-      password,
-      isPrivate,
-      name,
-      bio,
-      location,
-      website,
-      birthday,
-      showBirthday
-    } = req.body;
+    const { email, password, isPrivate, firstName, lastName, bio, location, website, birthday, showBirthday } = req.body;
 
-    // Check username uniqueness
-    if (username && username !== user.username) {
-      const exists = await User.findOne({ username });
-      if (exists) {
-        return responseHandler.error(
-          res,
-          'Username already exists',
-          statusCodes.CONFLICT
-        );
-      }
-      user.username = username;
-    }
-
-    // Check email uniqueness
     if (email && email.toLowerCase() !== user.email) {
-      const exists = await User.findOne({ email: email.toLowerCase() });
-      if (exists) {
-        return responseHandler.error(
-          res,
-          'Email already exists',
-          statusCodes.CONFLICT
-        );
-      }
+      if (await User.findOne({ email: email.toLowerCase() })) return responseHandler.error(res, 'Email exists', statusCodes.CONFLICT);
       user.email = email.toLowerCase();
     }
 
-    // Update password
-    if (password) {
-      user.password = await hashPassword(password);
-    }
+    // 2. Hash New Password if provided
+    if (password) user.password = await hashPassword(password);
 
-    // Update privacy
-    if (isPrivate !== undefined) {
-      user.isPrivate = isPrivate === true || isPrivate === 'true';
-    }
-
-    if (name) {
-      user.name = name;
-      const parts = name.split(' ');
-      if (parts.length > 0) user.firstName = parts[0];
-      if (parts.length > 1) user.lastName = parts.slice(1).join(' ');
-    }
+    // 3. Update Text Metadata
+    if (isPrivate !== undefined) user.isPrivate = isPrivate === true || isPrivate === 'true';
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
     if (bio !== undefined) user.bio = bio;
     if (location !== undefined) user.location = location;
     if (website !== undefined) user.website = website;
     if (birthday !== undefined) user.birthday = birthday;
-    if (showBirthday !== undefined) {
-      user.showBirthday = showBirthday === true || showBirthday === 'true';
-    }
+    if (showBirthday !== undefined) user.showBirthday = showBirthday === true || showBirthday === 'true';
 
-    // Update banner
+    // 4. Handle FILE UPLOADS (Avatar/Banner)
     if (req.files?.banner) {
       const fileName = generateUniqueFileName(req.files.banner[0].originalname);
       const { url, key } = await uploadBufferToMinIO(req.files.banner[0].buffer, fileName, req.files.banner[0].mimetype);
@@ -151,7 +98,6 @@ const updateProfile = async (req, res) => {
       user.bannerType = req.files.banner[0].mimetype;
     }
 
-    // Update avatar
     if (req.files?.avatar) {
       const fileName = generateUniqueFileName(req.files.avatar[0].originalname);
       const { url, key } = await uploadBufferToMinIO(req.files.avatar[0].buffer, fileName, req.files.avatar[0].mimetype);
@@ -162,37 +108,14 @@ const updateProfile = async (req, res) => {
     await user.save();
 
     const userResponse = {
-      _id: user._id,
-      name: user.name,
-      username: user.username,
-      email: user.email,
-      isPrivate: user.isPrivate,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      avatar: user.avatar?.url || null,
-      banner: user.banner?.url || null,
-      bio: user.bio,
-      location: user.location,
-      website: user.website,
-      birthday: user.birthday,
-      showBirthday: user.showBirthday
+        ...user.toObject(),
+        handle: user.handle
     };
 
-    return responseHandler.success(
-      res,
-      userResponse,
-      'Profile updated successfully',
-      statusCodes.UPDATED
-    );
+    return responseHandler.success(res, userResponse, 'Profile updated successfully', statusCodes.UPDATED);
 
   } catch (error) {
-    console.error('Update profile error:', error);
-    return responseHandler.error(
-      res,
-      'Failed to update profile',
-      statusCodes.INTERNAL_SERVER_ERROR,
-      process.env.NODE_ENV === 'development' ? error.message : undefined
-    );
+    return responseHandler.error(res, 'Failed to update profile', statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -242,9 +165,11 @@ const getUserById = async (req, res) => {
 
     const userResponse = {
         _id: user._id,
-        name: user.name,
-        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        handle: user.handle,
         isPrivate: user.isPrivate,
+        email: user.email,
         isFollowing,
         followStatus,
         followersCount: user.followersCount,
@@ -262,7 +187,6 @@ const getUserById = async (req, res) => {
 
     if (user.isPrivate && !isAuthorized) {
         userResponse.isPrivateView = true;
-        // Optionally omit more data if needed for strictly private views
     }
 
     return responseHandler.success(
@@ -301,11 +225,11 @@ const getUserPosts = async (req, res) => {
     
     const posts = await Thread.find({ author: userId, isArchived: false })
       .sort({ createdAt: -1 })
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .populate('parentThread', 'content author')
       .populate({
         path: 'repostOf',
-        populate: { path: 'author', select: 'username name avatar avatarType' }
+        populate: { path: 'author', select: 'firstName lastName avatar avatarType' }
       })
       .lean();
 
@@ -343,7 +267,7 @@ const getSuggestions = async (req, res) => {
 
     // Find users not followed (ACCEPTED)
     const suggestions = await User.find({ _id: { $nin: followingIds } })
-      .select('_id name username avatar avatarType')
+      .select('_id firstName lastName avatar avatarType')
       .limit(5)
       .lean();
 
@@ -362,8 +286,13 @@ const getSuggestions = async (req, res) => {
       // Check if suggested user follows the current user
       const followingMe = await Follow.findOne({ follower: user._id, following: userId, status: 'ACCEPTED' });
 
+      const base = `${user.firstName || ''}${user.lastName || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const suffix = user._id ? user._id.toString().slice(-4) : '';
+      const handle = `@${base}${suffix}`;
+
       return {
           ...user,
+          handle,
           avatar: user.avatar?.url || null,
           followStatus: follow?.status || null,
           followsMe: !!followingMe

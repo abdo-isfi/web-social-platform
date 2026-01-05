@@ -34,7 +34,9 @@ export default function Feed() {
   const [justDeletedCommentId, setJustDeletedCommentId] = useState(null);
   const [replying, setReplying] = useState(false);
 
-  // Fetch posts on mount and when feedMode changes
+  const { isAuthenticated } = useSelector(state => state.auth);
+  
+  // Fetch posts on mount and when feedMode or auth status changes
   useEffect(() => {
     dispatch(clearPosts()); // Clear old posts instantly to avoid flickering/phantom feed
     dispatch(fetchPosts({ 
@@ -42,7 +44,7 @@ export default function Feed() {
       limit: 20, 
       mode: feedMode === 'public' ? 'discover' : 'following' 
     }));
-  }, [dispatch, feedMode]);
+  }, [dispatch, feedMode, isAuthenticated]);
 
   const handleNewPost = (data) => {
     return requireAuth(() => {
@@ -73,7 +75,7 @@ export default function Feed() {
                  id: id, 
                  type: 'comment', 
                  threadId: payload.thread,
-                 mentionUsername: payload.author?.username // Store username for mention
+                 mentionName: `${payload.author?.firstName || ''} ${payload.author?.lastName || ''}`.trim()
              });
          } else {
              setReplyingTo({ id: id, type: 'post', threadId: id });
@@ -204,13 +206,11 @@ export default function Feed() {
                   key={post._id || post.id}
                   id={post._id || post.id}
                   repostedBy={isRepost ? {
-                    name: post.author?.name || post.author?.username,
-                    username: post.author?.username
+                    name: `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim() || 'Unknown'
                   } : null}
                   author={{
                     _id: displayPost.author?._id || displayPost.author?.id,
-                    name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
-                    username: displayPost.author?.username || 'unknown',
+                    name: `${displayPost.author?.firstName || ''} ${displayPost.author?.lastName || ''}`.trim() || 'Unknown',
                     avatar: authorAvatar,
                     timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                   }}
@@ -256,7 +256,7 @@ export default function Feed() {
         onSubmit={handleReplySubmit}
         loading={replying}
         title={replyingTo?.type === 'comment' ? "Reply to comment" : "Reply to post"}
-        initialContent={replyingTo?.mentionUsername ? `@${replyingTo.mentionUsername} ` : ""}
+        initialContent={replyingTo?.mentionName ? `@${replyingTo.mentionName} ` : ""}
       />
 
       <CommentDialog 

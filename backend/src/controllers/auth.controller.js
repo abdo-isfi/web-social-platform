@@ -1,3 +1,10 @@
+/**
+ * auth.controller.js - The Gatekeeper's Logic
+ * 
+ * This file contains the actual functions (logic) for authentication.
+ * It's where we talk to the Database AND send responses to the user.
+ */
+
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const User = require('../models/user.model');
@@ -8,35 +15,31 @@ const generateTokens = require('../utils/generateToken');
 const envVar = require('../config/EnvVariable');
 const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
 
+/**
+ * REGISTER NEW USER
+ */
 const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password, isPrivate } = req.body;
 
+    // 1. Check if the user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
-
     if (existingUser) {
       return responseHandler.error(res, 'Email already exists', statusCodes.CONFLICT);
     }
 
-    // Auto-generate username
-    const baseUsername = `${firstName}${lastName}`.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000); // 4 digit random number
-    const username = `${baseUsername}${randomSuffix}`;
-
-    // Combine for display name
-    const fullName = `${firstName} ${lastName}`.trim();
-
+    // 3. Hash the password (never store plain passwords!)
     const hashed = await hashPassword(password);
 
     const userData = {
       firstName,
       lastName,
-      name: fullName,
-      username,
       email: email.toLowerCase(),
       password: hashed,
       isPrivate: isPrivate || false
     };
+
+    // 4. Handle File Uploads (Avatar & Banner) to MinIO
     if (req.files?.avatar) {
       const fileName = generateUniqueFileName(req.files.avatar[0].originalname);
       const { url, key } = await uploadBufferToMinIO(req.files.avatar[0].buffer, fileName, req.files.avatar[0].mimetype);
@@ -50,17 +53,20 @@ const register = async (req, res) => {
       userData.bannerType = req.files.banner[0].mimetype;
     }
 
+    // 5. Save to Database
     const user = new User(userData);
     await user.save();
 
+    // 6. Generate JWT Tokens
     const { accessToken, refreshToken } = generateTokens(user);
-    user.refreshToken = refreshToken;
+    user.refreshToken = refreshToken; // Save refresh token to user for session management
     await user.save();
 
+    // 7. Prepare response (Omit sensitive data like password)
     const userResponse = {
       _id: user._id,
-      name: user.name,
-      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       isPrivate: user.isPrivate,
       avatar: user.avatar || null,
@@ -73,6 +79,8 @@ const register = async (req, res) => {
       updatedAt: user.updatedAt
     };
 
+    // 8. Set Refresh Token in a cookie (Secure and HTTPOnly!)
+    // This is safer than LocalStorage because JS cannot read it.
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -87,26 +95,34 @@ const register = async (req, res) => {
   }
 };
 
+/**
+ * LOGIN EXISTING USER
+ */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // 1. Find user
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return responseHandler.error(res, 'User not found', statusCodes.NOT_FOUND);
 
+    // 2. Verify password
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) return responseHandler.unauthorized(res, 'Invalid password');
 
+    // 3. Generate new tokens
     const { accessToken, refreshToken } = generateTokens(user);
 
+    // 4. Update refresh token in DB
     user.refreshToken = refreshToken;
     await user.save();
 
     const userResponse = {
       _id: user._id,
-      name: user.name,
-      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
+      handle: user.handle,
       isPrivate: user.isPrivate,
       avatar: user.avatar || null,
       banner: user.banner || null,
@@ -118,6 +134,7 @@ const login = async (req, res) => {
       updatedAt: user.updatedAt
     };
 
+    // 5. Set Cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -132,15 +149,22 @@ const login = async (req, res) => {
   }
 };
 
+/**
+ * REFRESH TOKEN (Keep the user logged in)
+ */
 const refreshToken = async (req, res) => {
   try {
     const token = req.cookies.refreshToken || req.body.refreshToken;
     if (!token) return responseHandler.unauthorized(res, 'No refresh token provided');
 
+    // 1. Verify the token
     const payload = jwt.verify(token, envVar.REFRESH_TOKEN_SECRET);
     const user = await User.findById(payload.id);
+    
+    // 2. Make sure it matches what we have in DB
     if (!user || user.refreshToken !== token) return responseHandler.unauthorized(res, 'Invalid refresh token');
 
+    // 3. Generate new pair of tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
 
     user.refreshToken = newRefreshToken;
@@ -160,6 +184,9 @@ const refreshToken = async (req, res) => {
   }
 };
 
+/**
+ * LOGOUT
+ */
 const logout = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
@@ -167,47 +194,47 @@ const logout = async (req, res) => {
       const payload = jwt.verify(token, envVar.REFRESH_TOKEN_SECRET);
       const user = await User.findById(payload.id);
       if (user) {
-        user.refreshToken = null;
+        user.refreshToken = null; // Invalidate current session in DB
         await user.save();
       }
     }
 
-    res.clearCookie("refreshToken");
+    res.clearCookie("refreshToken"); // Remove the cookie from the browser
     return responseHandler.success(res, null, 'Logged out successfully');
   } catch (error) {
     return responseHandler.error(res, 'Failed to logout', statusCodes.INTERNAL_SERVER_ERROR, error.message);
   }
 };
 
+/**
+ * GET CURRENT AUTHENTICATED USER
+ */
 const getCurrentUser = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // User ID extracted from JWT by 'authenticate' middleware
     const user = await User.findById(userId).select('-password -refreshToken');
     
     if (!user) {
       return responseHandler.notFound(res, 'User');
     }
 
+    // Refresh image URLs (MinIO links expire after a while for security)
     const { refreshPresignedUrl } = require('../utils/minioHelper');
     if (user.avatar?.key) {
       try {
         user.avatar.url = await refreshPresignedUrl(user.avatar.key);
-      } catch (e) {
-        console.error('Failed to refresh avatar URL:', e);
-      }
+      } catch (e) { console.error(e); }
     }
     if (user.banner?.key) {
       try {
         user.banner.url = await refreshPresignedUrl(user.banner.key);
-      } catch (e) {
-        console.error('Failed to refresh banner URL:', e);
-      }
+      } catch (e) { console.error(e); }
     }
 
     const userResponse = {
       _id: user._id,
-      name: user.name,
-      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       isPrivate: user.isPrivate,
       avatar: user.avatar?.url || null,

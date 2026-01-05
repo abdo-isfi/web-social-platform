@@ -1,3 +1,10 @@
+/**
+ * comment.model.js - The Conversations
+ * 
+ * This model handles comments on threads. 
+ * Comments are slightly different from threads in this specific implementation.
+ */
+
 const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema(
@@ -7,22 +14,26 @@ const commentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // The person who wrote the comment
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
+    // The "Main Post" being commented on
     thread: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Thread",
       required: true,
     },
+    // RECURSIVE RELATION: If this is a reply to another comment
     parentComment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Comment",
       default: null
     },
-    media: { // Keeping media structure for future-proofing or if comments support it
+    // Comments can also have media!
+    media: {
       mediaType: {
         type: String,
         enum: ["image", "video"],
@@ -31,7 +42,8 @@ const commentSchema = new mongoose.Schema(
       key: String,
       contentType: String,
     },
-    likesCount: { // Optional denormalization
+    // A cached count to avoid expensive database queries
+    likesCount: {
         type: Number,
         default: 0
     }
@@ -41,6 +53,7 @@ const commentSchema = new mongoose.Schema(
   }
 );
 
+// Indexes to speed up loading comments for a specific post
 commentSchema.index({ thread: 1, createdAt: 1 });
 commentSchema.index({ author: 1 });
 

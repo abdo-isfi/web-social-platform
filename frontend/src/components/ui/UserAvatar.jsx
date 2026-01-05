@@ -34,13 +34,17 @@ export function UserAvatar({ user, className, ...props }) {
     setHasError(false);
   }, [avatarUrl]);
 
+  // Calculate initials for fallback alt text
+  const displayName = user?.firstName || user?.lastName || 'U';
+  const initial = displayName.charAt(0).toUpperCase();
+
   const finalSrc = (!hasError && avatarUrl) ? avatarUrl : "https://github.com/shadcn.png";
 
   return (
     <img
       key={avatarUrl || 'default'}
       src={finalSrc}
-      alt={user?.name || user?.username || 'User'}
+      alt={user?.firstName || initial}
       className={cn("rounded-full object-cover bg-muted ring-1 ring-border/10", className)}
       onError={() => {
         if (!hasError) setHasError(true);

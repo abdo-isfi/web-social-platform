@@ -97,9 +97,12 @@ export function NotificationItem({ notification, onClick }) {
                          <Link 
                            to={`/profile/${notification.sender._id}`} 
                            onClick={(e) => e.stopPropagation()}
-                           className="font-bold text-foreground hover:underline"
+                           className="group/sender"
                         >
-                            {notification.sender?.name || notification.sender?.username || "Someone"}
+                          <Link to={`/profile/${notification.sender?._id}`} className="hover:underline flex items-center gap-1.5 min-w-0">
+                  <span className="font-extrabold text-foreground truncate">{notification.sender?.firstName} {notification.sender?.lastName}</span>
+                  {notification.sender?.handle && <span className="text-primary text-[10px] font-bold truncate opacity-80">{notification.sender.handle}</span>}
+                </Link>
                         </Link>{" "}
                         {notification.type === "FOLLOW_REQUEST" ? "sent you a follow request" : 
                          notification.type === "FOLLOW_ACCEPTED" ? "accepted your follow request" :
@@ -121,6 +124,11 @@ export function NotificationItem({ notification, onClick }) {
                             minute: '2-digit'
                         }) : "Just now"}
                     </div>
+                    {notification.type === 'FOLLOW_REQUEST' && (
+              <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                wants to follow you
+              </p>
+            )}
                     {notification.type === "FOLLOW_REQUEST" && (
                         <div className="pt-2 flex gap-2">
                              {requestStatus === "ACCEPTED" ? (

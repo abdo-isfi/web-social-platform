@@ -112,8 +112,9 @@ export function SocialCard({
                 <h3 className="text-base font-bold text-foreground leading-tight group-hover/author:text-primary transition-colors">
                   {author?.name}
                 </h3>
+                {author?.handle && <p className="text-primary text-[10px] font-bold leading-none -mt-0.5">{author.handle}</p>}
                 <p className="text-sm text-muted-foreground/80 leading-tight mt-0.5">
-                  @{author?.username} · <span className="text-xs opacity-70 font-medium">{author?.timeAgo}</span>
+                   <span className="text-xs opacity-70 font-medium">{author?.timeAgo}</span>
                 </p>
               </div>
             </Link>
@@ -182,7 +183,7 @@ export function SocialCard({
                           className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors w-full text-left font-medium"
                         >
                           <UserPlus className="w-4 h-4 text-primary" />
-                          <span>{permissions.followStatus === 'PENDING' ? "Requested" : `Follow @${author?.username}`}</span>
+                          <span>{permissions.followStatus === 'PENDING' ? "Requested" : `Follow ${author?.name}`}</span>
                         </button>
                       )}
                       {permissions.isFollowing && (
@@ -191,7 +192,7 @@ export function SocialCard({
                           className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted rounded-lg transition-colors w-full text-left font-medium"
                          >
                            <UserMinus className="w-4 h-4 text-muted-foreground" />
-                           <span>Unfollow @{author?.username}</span>
+                           <span>Unfollow {author?.name}</span>
                          </button>
                       )}
                       

@@ -135,6 +135,7 @@ export const fetchMe = () => async (dispatch) => {
     const { authService } = await import('@/services/auth.service');
     const response = await authService.getCurrentUser();
     if (response) {
+      // response already has firstName, lastName, etc. 
       dispatch(updateUser(response));
       return response;
     }

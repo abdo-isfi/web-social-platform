@@ -13,6 +13,7 @@ import { PostComments } from '@/components/feed/PostComments';
 export function BookmarksPage() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
+  const { isAuthenticated } = useSelector(state => state.auth);
   const { posts, loading, error } = useSelector(state => state.posts);
   
   // State for comments
@@ -21,8 +22,10 @@ export function BookmarksPage() {
   const [recentComments, setRecentComments] = React.useState({});
 
   useEffect(() => {
-    dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
-  }, [dispatch]);
+    if (isAuthenticated) {
+      dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
+    }
+  }, [dispatch, isAuthenticated]);
 
   const handleLike = (postId, isLiked) => {
     requireAuth(() => {
@@ -194,12 +197,11 @@ export function BookmarksPage() {
                         id={post._id || post.id}
                         className="mx-0 shadow-sm" // mx-0 because parent container has px-6
                         author={{
-                          _id: post.author?._id || post.author?.id,
-                          name: post.author?.name || post.author?.username || 'Unknown',
-                          username: post.author?.username || 'unknown',
-                          avatar: post.author?.avatar || 'https://github.com/shadcn.png',
-                          timeAgo: post.createdAt ? new Date(post.createdAt).toLocaleDateString() : 'Just now',
-                        }}
+                    _id: post.author?._id || post.author?.id,
+                    name: `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim() || 'Unknown',
+                    avatar: post.author?.avatar || 'https://github.com/shadcn.png',
+                    timeAgo: post.createdAt ? formatRelativeTime(post.createdAt) : 'Just now',
+                  }}
                         content={{
                           text: post.content || '',
                           media: post.media ? (Array.isArray(post.media) ? post.media : [post.media]) : [],

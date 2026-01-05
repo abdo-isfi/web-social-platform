@@ -22,7 +22,7 @@ const getComments = async (req, res) => {
 
     let queryBuilder = Comment.find(query)
       .sort({ createdAt: 1 })
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
     if (!cursor && page > 1) {
@@ -92,7 +92,7 @@ const createComment = async (req, res) => {
     });
 
     const populatedComment = await Comment.findById(comment._id)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
     if (populatedComment.author && populatedComment.author.avatar && Buffer.isBuffer(populatedComment.author.avatar)) {
@@ -144,7 +144,7 @@ const updateComment = async (req, res) => {
         await comment.save();
 
         const populatedComment = await Comment.findById(comment._id)
-          .populate('author', '_id username name avatar avatarType')
+          .populate('author', '_id firstName lastName avatar avatarType')
           .lean();
 
         if (populatedComment.author && populatedComment.author.avatar && Buffer.isBuffer(populatedComment.author.avatar)) {

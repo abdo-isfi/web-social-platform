@@ -1,14 +1,22 @@
+/**
+ * avatarUpload.js - Profile Photo Handler
+ * 
+ * Specifically configured for small profile pictures.
+ * Uses Memory Storage (fast) because avatars are tiny.
+ */
+
 const multer = require("multer");
 const path = require("path");
 
 module.exports = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 },
+  storage: multer.memoryStorage(), // Keeps file in RAM for quick processing
+  limits: { fileSize: 200 * 1024 }, // Max 200KB (don't need high-res for icons)
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
+    // Security: Only allow images
     if (mimetype && extname) {
       return cb(null, true);
     }

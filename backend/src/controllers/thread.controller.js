@@ -1,45 +1,46 @@
+/**
+ * thread.controller.js - The Post Factory
+ * 
+ * This is the largest controller. It handles everything users see 
+ * in their main feed.
+ */
+
 const Thread = require("../models/thread.model");
 const Comment = require("../models/comment.model");
 const User = require('../models/user.model');
-const Like=require("../models/like.model");
-const Follow = require('../models/follower.model'); // Added Follow model
-const Notification = require('../models/notification.model'); // Added Notification model
+const Like = require("../models/like.model");
+const Follow = require('../models/follower.model'); 
+const Notification = require('../models/notification.model'); 
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const { emitToUser } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 const { formatThreadResponse } = require("../utils/threadFormatter");
 
+/**
+ * CREATE A NEW THREAD
+ */
 const createThread = async (req, res) => {
   try {
     const { content, parentThread } = req.body;
     
+    // Check if there is something to post (text OR media)
     const hasMedia = !!req.file;
     const hasContent = content && content.trim() !== "";
 
     if (!hasContent && !hasMedia) {
-      return responseHandler.error(
-        res,
-        "Thread must contain either text or media",
-        statusCodes.BAD_REQUEST
-      );
+      return responseHandler.error(res, "Thread must contain either text or media", statusCodes.BAD_REQUEST);
     }
 
-    if (parentThread) {
-      const parent = await Thread.findById(parentThread);
-      if (!parent) {
-        return responseHandler.notFound(res, "Parent thread");
-      }
-    }
-
+    // Extraction: Find hashtags (#cool) and mentions (@user) in the text
     const safeContent = content ? content : "";
-    const hashtags = safeContent.match(/#[a-z0-9_]+/gi) || []; // Extract hashtags
-    const mentions = safeContent.match(/@[a-z0-9_]+/gi) || []; // Extract mentions raw strings (need to look up users)
+    const hashtags = safeContent.match(/#[a-z0-9_]+/gi) || []; 
+    const mentions = safeContent.match(/@[a-z0-9_]+/gi) || []; 
 
-    // Lookup mentioned users
+    // Find the IDs of the users mentioned
     const mentionedUserIds = [];
     if (mentions.length > 0) {
-        const usernames = mentions.map(m => m.substring(1)); // remove @
+        const usernames = mentions.map(m => m.substring(1)); // Remove the '@'
         const users = await User.find({ username: { $in: usernames } }).select('_id');
         users.forEach(u => mentionedUserIds.push(u._id));
     }
@@ -48,107 +49,79 @@ const createThread = async (req, res) => {
       content: safeContent.trim(),
       author: req.user.id, 
       parentThread: parentThread || null,
-      hashtags: hashtags.map(h => h.toLowerCase().substring(1)), // store without #
+      hashtags: hashtags.map(h => h.toLowerCase().substring(1)), // Save 'cool' instead of '#cool'
       mentions: mentionedUserIds
     };
 
-    // Handle media upload to MinIO
+    /**
+     * MEDIA UPLOAD Logic
+     * We don't save images in MongoDB (too slow/heavy).
+     * We upload them to MinIO (Storage Server) and save the URL.
+     */
     if (req.file) {
       try {
         const { uploadToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
-        
-        // Determine media type
         const mediaType = req.file.mimetype.startsWith("video/") ? "video" : "image";
-        
-        // Generate unique filename to avoid collisions
         const uniqueFileName = generateUniqueFileName(req.file.originalname);
         
-        console.log(`Uploading ${mediaType} to MinIO: ${uniqueFileName}`);
+        // Upload to storage
+        const { key, url } = await uploadToMinIO(req.file.path, uniqueFileName, req.file.mimetype);
         
-        // Upload to MinIO (this also deletes the temporary file)
-        const { key, url } = await uploadToMinIO(
-          req.file.path,
-          uniqueFileName,
-          req.file.mimetype
-        );
-        
-        // Store only metadata and URL in MongoDB (not binary data)
+        // Save the reference data in the Database
         threadData.media = {
           mediaType: mediaType,
           url: url,
           key: key,
           contentType: req.file.mimetype,
         };
-        
-        console.log(`✓ Media uploaded successfully: ${key}`);
       } catch (uploadError) {
-        console.error("MinIO upload error:", uploadError);
-        
-        // Clean up temporary file if it still exists
-        const fs = require('fs').promises;
-        try {
-          await fs.unlink(req.file.path);
-        } catch (unlinkError) {
-          // Ignore cleanup errors
-        }
-        
-        return responseHandler.error(
-          res,
-          "Failed to upload media file",
-          statusCodes.INTERNAL_SERVER_ERROR
-        );
+        console.error("Media upload error:", uploadError);
+        return responseHandler.error(res, "Failed to upload media file", statusCodes.INTERNAL_SERVER_ERROR);
       }
     }
 
+    // Save the thread record
     const thread = await Thread.create(threadData);
 
-    // Populate author details for the response
+    // Prepare for response by 'populating' author data
     const populatedThread = await Thread.findById(thread._id)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
-    if (!populatedThread) {
-        throw new Error("Failed to retrieve created thread for formatting");
-    }
-
+    // formatThreadResponse adds extra info like 'isLiked' and 'isBookmarked' for the current user
     const formattedThread = await formatThreadResponse(populatedThread, req.user.id);
 
-    // Verify notifications for mentions
+    // NOTIFICATIONS: Alert users who were mentioned
     if (mentionedUserIds.length > 0) {
       mentionedUserIds.forEach(async (mentionedId) => {
           if (mentionedId.toString() !== req.user.id) {
              const notification = await Notification.create({
-                type: 'NEW_THREAD', // Or MENTION type if supported
+                type: 'NEW_THREAD', 
                 receiver: mentionedId,
                 sender: req.user.id,
                 thread: thread._id,
                 isRead: false
              });
+             // Real-time notification via WebSockets
              emitToUser(mentionedId, 'notification:new', notification);
           }
       });
     }
 
-    return responseHandler.success(
-      res,
-      formattedThread,
-      "Thread created successfully",
-      statusCodes.CREATED
-    );
-  } catch (error) {
-    console.error("Create thread error stack:", error.stack);
+    return responseHandler.success(res, formattedThread, "Thread created successfully", statusCodes.CREATED);
 
-    return responseHandler.error(
-      res,
-      error.message || "Failed to create thread",
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+  } catch (error) {
+    return responseHandler.error(res, error.message || "Failed to create thread", statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
+/**
+ * GET USER THREADS
+ * Fetches all posts belonging to a specific user (the authenticated one).
+ */
 const getUserThreads = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page, limit } = req.pagination; // from middleware
+    const { page, limit } = req.pagination; // Pagination middleware logic
     const skip = (page - 1) * limit;
 
     const totalThreads = await Thread.countDocuments({ author: userId, isArchived: false });
@@ -157,9 +130,10 @@ const getUserThreads = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
+    // Format each thread to include 'liked by me' status
     const formattedThreads = (await Promise.all(
         threads.map(thread => formatThreadResponse(thread, userId))
     )).filter(thread => thread !== null);
@@ -168,20 +142,18 @@ const getUserThreads = async (req, res) => {
 
     return responseHandler.success(res, {
       threads: formattedThreads,
-      pagination: {
-        totalThreads,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-      },
+      pagination: { totalThreads, totalPages, currentPage: page, pageSize: limit },
     }, 'User threads fetched successfully', statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error('Get user threads error:', error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
+/**
+ * GET ARCHIVED THREADS
+ * Similar to getUserThreads but for hidden/archived posts.
+ */
 const getArchivedThreads = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -191,10 +163,10 @@ const getArchivedThreads = async (req, res) => {
     const totalThreads = await Thread.countDocuments({ author: userId, isArchived: true });
     
     const threads = await Thread.find({ author: userId, isArchived: true })
-      .sort({ updatedAt: -1 }) // Sort by when they were archived
+      .sort({ updatedAt: -1 }) 
       .skip(skip)
       .limit(limit)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
     const formattedThreads = (await Promise.all(
@@ -205,16 +177,10 @@ const getArchivedThreads = async (req, res) => {
 
     return responseHandler.success(res, {
       threads: formattedThreads,
-      pagination: {
-        totalThreads,
-        totalPages,
-        currentPage: page,
-        pageSize: limit,
-      },
+      pagination: { totalThreads, totalPages, currentPage: page, pageSize: limit },
     }, 'Archived threads fetched successfully', statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error('Get archived threads error:', error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
@@ -223,7 +189,7 @@ const getThreadById = async (req, res) => {
     const userId = req.user.id;          
     const { threadId } = req.params;   
     const thread = await Thread.findOne({ _id: threadId, author: userId,isArchived: false })
-      .populate('author', '_id username name avatar avatarType') 
+      .populate('author', '_id firstName lastName avatar avatarType') 
       .populate('parentThread', 'content') 
       .lean();
 
@@ -334,7 +300,7 @@ const updateThread = async (req, res) => {
 
     // Populate author username for response
     const updatedThread = await Thread.findById(thread._id)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .lean();
 
     const formattedThread = await formatThreadResponse(updatedThread, userId);
@@ -404,84 +370,81 @@ const unarchiveThread = async (req, res) => {
   }
 };
 
+/**
+ * DELETE THREAD
+ * Removes the post from Database and Storage.
+ */
 const deleteThread = async (req, res) => {
   try {
     const userId = req.user.id;
     const { threadId } = req.params;
 
-    // Find the thread by ID and author (only author can delete)
-    // We allow deleting archived threads too
     const thread = await Thread.findOne({ _id: threadId, author: userId });
     
     if (!thread) {
       return responseHandler.notFound(res, "Thread");
     }
 
-    // Delete media from MinIO if it exists
+    // 1. Clean up Storage (MinIO)
     if (thread.media && thread.media.key) {
       try {
         const { deleteFromMinIO } = require('../utils/minioHelper');
         await deleteFromMinIO(thread.media.key);
-        console.log(`✓ Media deleted from MinIO: ${thread.media.key}`);
       } catch (deleteError) {
         console.warn(`⚠ Failed to delete media: ${deleteError.message}`);
-        // Continue with deletion logic
       }
     }
 
-    // Delete the thread
+    // 2. Delete the Thread record itself
     await Thread.deleteOne({ _id: threadId });
 
-    // Cleanup associated data
+    // 3. CASCADE DELETE: Remove likes, comments, and notifications 
+    // linked to this deleted thread so we don't have "dead" references.
     await Comment.deleteMany({ thread: threadId });
     await Like.deleteMany({ thread: threadId });
     await Notification.deleteMany({ thread: threadId });
 
-    return responseHandler.success(
-      res,
-      { _id: threadId },
-      "Thread deleted successfully",
-      statusCodes.SUCCESS
-    );
+    return responseHandler.success(res, { _id: threadId }, "Thread deleted successfully", statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error("Delete thread error:", error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
+/**
+ * GET FEED (The Timeline)
+ * This is the algorithm that decides what you see.
+ */
 const getFeed = async (req, res) => {
   try {
     const userId = req.user?.id;
-    const { mode } = req.query; // Expect mode to be 'following' or 'discover'
+    const { mode } = req.query; // 'following' vs 'discover'
     const { page, limit } = req.pagination;
     const skip = (page - 1) * limit;
 
+    // Base filter: Don't show archived posts, don't show comments as main posts
     let filter = { isArchived: false, parentThread: null  };
 
     if (mode === 'following' && userId) {
-        // Just the posts of followed users
+        // Mode: Following - Only show people I follow
         const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
         const followingIds = following.map(f => f.following);
-        // Removed: followingIds.push(userId); // We want "Following" to be EXCLUSIVE to followed others
         filter.author = { $in: followingIds };
     } else {
-        // Discovery/Public mode: All posts from all users (not archived, not comments)
-        // EXCLUDING private users if not followed by current user
+        // Mode: Discovery - Show everyone's public posts
         if (userId) {
+            // Logged-in user: show public posts + people I follow (including private ones if followed)
             const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
             const followingIds = following.map(f => f.following);
-            followingIds.push(userId); // In public mode, user's own posts should show
+            followingIds.push(userId); 
 
+            // EXCLUDE private users UNLESS I follow them
             const privateUsers = await User.find({ isPrivate: true, _id: { $nin: followingIds } }).select('_id');
-            const privateUserIds = privateUsers.map(u => u._id);
-            
-            filter.author = { $nin: privateUserIds };
+            filter.author = { $nin: privateUsers.map(u => u._id) };
         } else {
-            // Unauthenticated: only show public accounts
+            // Not logged-in: Only show strictly public accounts
             const privateUsers = await User.find({ isPrivate: true }).select('_id');
-            const privateUserIds = privateUsers.map(u => u._id);
-            filter.author = { $nin: privateUserIds };
+            filter.author = { $nin: privateUsers.map(u => u._id) };
         }
     }
 
@@ -489,37 +452,26 @@ const getFeed = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .populate({
         path: 'repostOf',
-        populate: { path: 'author', select: '_id username name avatar avatarType' }
+        populate: { path: 'author', select: '_id firstName lastName avatar avatarType' }
       })
       .lean();
 
     const formattedThreads = (await Promise.all(
       threads.map(thread => formatThreadResponse(thread, userId))
-    )).filter(thread => thread !== null); // Filter out orphaned threads
+    )).filter(thread => thread !== null); 
 
     const totalThreads = await Thread.countDocuments(filter);
     const totalPages = Math.ceil(totalThreads / limit);
 
-    return responseHandler.success(
-      res,
-      {
+    return responseHandler.success(res, {
         threads: formattedThreads,
-        pagination: {
-          totalThreads,
-          totalPages,
-          currentPage: page,
-          pageSize: limit
-        }
-      },
-      "Feed fetched successfully",
-      statusCodes.SUCCESS
-    );
+        pagination: { totalThreads, totalPages, currentPage: page, pageSize: limit }
+    }, "Feed fetched successfully", statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error("Get feed error:", error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
@@ -571,10 +523,10 @@ const repostThread = async (req, res) => {
         }
 
         const populatedRepost = await Thread.findById(repost._id)
-          .populate('author', '_id username name avatar avatarType')
+          .populate('author', '_id firstName lastName avatar avatarType')
           .populate({
             path: 'repostOf',
-            populate: { path: 'author', select: '_id username name avatar avatarType' }
+            populate: { path: 'author', select: '_id firstName lastName avatar avatarType' }
           })
           .lean();
 
@@ -670,10 +622,10 @@ const getBookmarkedThreads = async (req, res) => {
     const pagedBookmarkIds = reversedBookmarks.slice(skip, skip + limit);
 
     const threads = await Thread.find({ _id: { $in: pagedBookmarkIds } })
-      .populate('author', '_id username name avatar avatarType')
+      .populate('author', '_id firstName lastName avatar avatarType')
       .populate({
         path: 'repostOf',
-        populate: { path: 'author', select: '_id username name avatar avatarType' }
+        populate: { path: 'author', select: '_id firstName lastName avatar avatarType' }
       })
       .lean();
 

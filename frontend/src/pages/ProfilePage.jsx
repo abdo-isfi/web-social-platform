@@ -361,7 +361,7 @@ export function ProfilePage() {
                      id: postId, 
                      type: 'comment', 
                      threadId: authorId.thread,
-                     mentionUsername: authorId.author?.username
+                     mentionName: authorId.author?.firstName + ' ' + authorId.author?.lastName
                  });
             } else {
                  setReplyingTo({ id: postId, type: 'post', threadId: postId });
@@ -491,12 +491,14 @@ export function ProfilePage() {
 
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-3xl font-black tracking-tight text-foreground">{profile.name || profile.username}</h1>
-                  <p className="text-muted-foreground font-medium">@{profile.username}</p>
+                  <h1 className="text-3xl font-black tracking-tight text-foreground">{profile.firstName} {profile.lastName}</h1>
+                  <div className="flex flex-col">
+                    <p className="text-primary font-bold">{profile.handle}</p>
+                  </div>
                 </div>
                 
                 {profile.bio && (
-                  <p className="text-base text-foreground/90 leading-relaxed max-w-2xl bg-muted/30 p-4 rounded-2xl border border-border/5">
+                  <p className="text-base text-foreground/90 leading-relaxed max-w-2xl bg-muted/60 p-4 rounded-2xl border border-border/10 !mt-2">
                     {profile.bio}
                   </p>
                 )}
@@ -584,7 +586,7 @@ export function ProfilePage() {
               <div className="flex flex-col items-center justify-center py-24 bg-card/30 rounded-[2.5rem] border border-dashed border-border/60 text-center backdrop-blur-sm">
                  <Lock className="w-16 h-16 text-muted-foreground/40 mb-6" />
                  <h3 className="text-2xl font-black">These posts are protected</h3>
-                 <p className="text-muted-foreground/80 font-medium mt-2">Only approved followers can see @{profile.username}'s posts.</p>
+                  <p className="text-muted-foreground/80 font-medium mt-2">Only approved followers can see {profile.firstName}'s posts.</p>
               </div>
             </div>
           ) : (loadingLikes && activeTab === 'likes') || (loadingArchived && activeTab === 'archived') ? (
@@ -608,8 +610,7 @@ export function ProfilePage() {
                     className="mx-0" // Remove relative margins as wrapper handles centering
                     author={{
                       _id: displayPost.author?._id || displayPost.author?.id,
-                      name: displayPost.author?.name || displayPost.author?.username || 'Unknown',
-                      username: displayPost.author?.username || 'unknown',
+                      name: `${displayPost.author?.firstName || ''} ${displayPost.author?.lastName || ''}`.trim() || 'Unknown',
                       avatar: displayPost.author?.avatar || 'https://github.com/shadcn.png',
                       timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                     }}
@@ -707,7 +708,7 @@ export function ProfilePage() {
         onSubmit={handleReplySubmit}
         loading={replying}
         title={replyingTo?.type === 'comment' ? "Reply to comment" : "Reply to post"}
-        initialContent={replyingTo?.mentionUsername ? `@${replyingTo.mentionUsername} ` : ""}
+        initialContent={replyingTo?.mentionName ? `@${replyingTo.mentionName} ` : ""}
       />
 
       <CommentDialog 

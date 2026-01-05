@@ -12,13 +12,16 @@ import { cn } from '@/lib/utils';
 export default function SearchPage() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
-  const { results = { users: [], threads: [] }, loading, query: globalQuery } = useSelector(state => state.search);
+  const { isAuthenticated } = useSelector(state => state.auth);
   const [localQuery, setLocalQuery] = useState(globalQuery || '');
 
-  // Update local query when global query changes (e.g. from right sidebar)
+  // Update local query when global query changes (e.g. from right sidebar) or auth status changes
   useEffect(() => {
     setLocalQuery(globalQuery);
-  }, [globalQuery]);
+    if (globalQuery) {
+      dispatch(performSearch({ query: globalQuery, type: 'people' }));
+    }
+  }, [globalQuery, isAuthenticated, dispatch]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -64,7 +67,7 @@ export default function SearchPage() {
             type="text"
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            placeholder="Search names or handles..."
+            placeholder="Search names or emails..."
             className="w-full bg-muted/40 border border-border/40 rounded-2xl py-2.5 pl-10 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all outline-none"
           />
           <button 
@@ -116,10 +119,10 @@ export default function SearchPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-black text-[15px] truncate group-hover:text-primary transition-colors">
-                      {item.name || item.username}
+                      {item.firstName} {item.lastName}
                     </p>
-                    <p className="text-xs text-muted-foreground/70 font-semibold truncate leading-none mt-1">
-                      @{item.username}
+                    <p className="text-primary text-xs truncate font-semibold leading-none mt-1">
+                      {item.handle}
                     </p>
                   </div>
                 </Link>

@@ -80,13 +80,12 @@ export function SettingsPage() {
                             <div className="text-base font-semibold text-foreground/90">{user?.email || 'user@example.com'}</div>
                           </div>
                       </div>
-                      <div className="h-px bg-border/5" />
                       <div className="flex items-center justify-between group">
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest flex items-center gap-2">
-                                <AtSign className="w-3.5 h-3.5" /> Username
+                                <User className="w-3.5 h-3.5" /> Full Name
                             </label>
-                            <div className="text-base font-semibold text-foreground/90">@{user?.username || 'username'}</div>
+                            <div className="text-base font-semibold text-foreground/90">{user?.firstName} {user?.lastName}</div>
                           </div>
                       </div>
                   </div>

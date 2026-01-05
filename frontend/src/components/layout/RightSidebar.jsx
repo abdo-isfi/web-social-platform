@@ -19,10 +19,10 @@ export function RightSidebar() {
   const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && suggestions.length === 0) {
+    if (isAuthenticated) {
       dispatch(fetchSuggestions());
     }
-  }, [isAuthenticated, dispatch, suggestions.length]);
+  }, [isAuthenticated, dispatch]);
 
   // Debounced search logic
   useEffect(() => {
@@ -35,7 +35,7 @@ export function RightSidebar() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, dispatch]);
+  }, [searchQuery, dispatch, isAuthenticated]);
 
   const handleFollow = (userId) => {
     requireAuth(() => {
@@ -106,9 +106,13 @@ export function RightSidebar() {
                               className="flex items-center gap-3 p-3 hover:bg-muted/80 rounded-xl transition-colors group/res"
                             >
                               <UserAvatar user={user} className="w-10 h-10 shadow-sm" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-bold text-sm truncate group-hover/res:text-primary transition-colors">{user.name || user.username}</p>
-                                <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                              <div className="flex flex-col flex-1 min-w-0">
+                                <h4 className="text-sm font-bold text-foreground truncate group-hover/res:text-primary transition-colors">
+                                  {user.firstName} {user.lastName}
+                                </h4>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {user.email}
+                                </p>
                               </div>
                             </Link>
                           ))}
@@ -154,8 +158,8 @@ export function RightSidebar() {
                     className="w-10 h-10 rounded-full object-cover border-2 border-background shadow-sm" 
                   />
                   <div className="min-w-0">
-                    <p className="font-bold text-[14px] text-foreground truncate">{user.name || user.username}</p>
-                    <p className="text-muted-foreground text-xs truncate">@{user.username}</p>
+                    <p className="font-bold text-[14px] text-foreground truncate">{user.firstName} {user.lastName}</p>
+                    <p className="text-primary text-xs truncate font-semibold">{user.handle}</p>
                   </div>
                 </Link>
                 <Button 
