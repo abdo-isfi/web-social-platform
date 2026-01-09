@@ -712,7 +712,47 @@ const getRecommendedFeed = async (req, res) => {
     }, "Recommended feed fetched successfully", statusCodes.SUCCESS);
 
   } catch (error) {
-    console.error("Get recommended feed error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+/**
+ * GET TRENDING HASHTAGS
+ * Aggregates top hashtags from recent posts
+ */
+const getTrending = async (req, res) => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const trends = await Thread.aggregate([
+      {
+        $match: {
+          isArchived: false,
+          createdAt: { $gte: sevenDaysAgo },
+          hashtags: { $exists: true, $not: { $size: 0 } }
+        }
+      },
+      { $unwind: "$hashtags" },
+      {
+        $group: {
+          _id: "$hashtags",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    const formattedTrends = trends.map(t => ({
+      id: t._id,
+      topic: t._id.startsWith('#') ? t._id : `#${t._id}`,
+      posts: `${t.count} posts`
+    }));
+
+    return responseHandler.success(res, formattedTrends, "Trending hashtags fetched successfully", statusCodes.SUCCESS);
+  } catch (error) {
+    console.error("Get trending error:", error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
@@ -728,6 +768,7 @@ module.exports = {
   deleteThread,
   getFeed,
   getRecommendedFeed,
+  getTrending,
   repostThread,
   unrepostThread,
   bookmarkThread,

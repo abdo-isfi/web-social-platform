@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
-import { fetchSuggestions, followUser } from '@/store/slices/userSlice';
+import { fetchSuggestions, followUser, unfollowUser } from '@/store/slices/userSlice';
 import { Link } from 'react-router-dom';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { performSearch, clearSearch } from '@/store/slices/searchSlice';
+import { fetchTrending } from '@/store/slices/postSlice';
 import { cn } from '@/lib/utils';
 
 export function RightSidebar() {
@@ -14,6 +15,7 @@ export function RightSidebar() {
   const { suggestions, loading } = useSelector(state => state.user);
   const { isAuthenticated } = useSelector(state => state.auth);
   const { results, loading: searchLoading } = useSelector(state => state.search);
+  const { trends } = useSelector(state => state.posts);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -23,6 +25,10 @@ export function RightSidebar() {
       dispatch(fetchSuggestions());
     }
   }, [isAuthenticated, dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchTrending());
+  }, [dispatch]);
 
   // Debounced search logic
   useEffect(() => {
@@ -43,11 +49,6 @@ export function RightSidebar() {
     }, 'login');
   };
 
-  const trends = [
-    { id: 1, topic: "Technology", posts: "125K posts" },
-    { id: 2, topic: "#ReactJS", posts: "85K posts" },
-    { id: 3, topic: "Artificial Intelligence", posts: "50K posts" },
-  ];
 
   return (
     <div className="flex flex-col w-[290px] shrink-0 pt-0 pb-8 px-4 gap-8">

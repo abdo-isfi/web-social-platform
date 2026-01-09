@@ -89,5 +89,10 @@ export const postService = {
   deleteComment: async (commentId) => {
     return await api.delete(`/thread/comments/${commentId}`);
   },
+
+  // Get trending hashtags
+  getTrending: async () => {
+    return await api.get('/thread/trending');
+  },
 };
 

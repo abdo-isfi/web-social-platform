@@ -16,6 +16,13 @@ export const fetchRecommendedPosts = createAsyncThunk(
   }
 );
 
+export const fetchTrending = createAsyncThunk(
+  'posts/fetchTrending',
+  async () => {
+    return await postService.getTrending();
+  }
+);
+
 export const createPost = createAsyncThunk(
   'posts/createPost',
   async (postData) => {
@@ -83,6 +90,7 @@ const initialState = {
   error: null,
   hasMore: true,
   currentPage: 1,
+  trends: [],
 };
 
 const postSlice = createSlice({
@@ -247,6 +255,10 @@ const postSlice = createSlice({
       .addCase(fetchRecommendedPosts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
+      })
+      // Fetch trending posts
+      .addCase(fetchTrending.fulfilled, (state, action) => {
+        state.trends = action.payload || [];
       });
   },
 });
