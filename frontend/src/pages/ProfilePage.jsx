@@ -68,7 +68,7 @@ export function ProfilePage() {
           setIsFollowing(false);
           setProfile(prev => ({ 
               ...prev, 
-              followersCount: Math.max(0, (isFollowing ? prev.followersCount - 1 : prev.followersCount)),
+              // Don't decrement count here - socket 'user_updated' will handle it
               isFollowing: false,
               followStatus: null
           }));
@@ -81,7 +81,7 @@ export function ProfilePage() {
               setIsFollowing(true);
               setProfile(prev => ({ 
                   ...prev, 
-                  followersCount: (prev.followersCount || 0) + 1,
+                  // Don't increment count here - socket 'user_updated' will handle it
                   isFollowing: true,
                   followStatus: 'ACCEPTED'
               }));
@@ -476,14 +476,14 @@ export function ProfilePage() {
                         "rounded-full font-bold px-8 py-2 transition-all active:scale-95 shadow-md hover:shadow-lg",
                         isFollowing ? "bg-muted text-foreground hover:bg-destructive hover:text-destructive-foreground" : 
                         profile?.followStatus === 'PENDING' ? "bg-muted/50 text-muted-foreground border-2 border-border/50 hover:bg-destructive hover:text-destructive-foreground" :
-                        profile?.followsMe ? "bg-primary text-primary-foreground" :
+                        (isAuthenticated && profile?.followsMe) ? "bg-primary text-primary-foreground" :
                         "bg-primary text-primary-foreground"
                       )}
                       onClick={handleFollowToggle}
                     >
                       {isFollowing ? 'Unfollow' : 
                        profile?.followStatus === 'PENDING' ? 'Requested' : 
-                       profile?.followsMe ? 'Follow back' : 'Follow'}
+                       (isAuthenticated && profile?.followsMe) ? 'Follow back' : 'Follow'}
                     </Button>
                   )}
                 </div>

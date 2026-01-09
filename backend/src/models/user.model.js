@@ -68,6 +68,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  interests: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(v) {
+        return Array.isArray(v) && new Set(v).size === v.length;
+      },
+      message: 'Interests must be unique strings'
+    }
+  },
 
   // Media (Avatar & Banner)
   avatar: {

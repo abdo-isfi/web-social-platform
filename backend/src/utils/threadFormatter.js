@@ -1,4 +1,4 @@
-git/**
+/**
  * threadFormatter.js - The Post Decorator
  * 
  * This is the MOST IMPORTANT helper in the backend. 

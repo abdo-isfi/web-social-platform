@@ -123,6 +123,13 @@ export function PostComments({ postId, newComment, updatedComment, deletedCommen
             await postService.likePost(commentId);
         }
     } catch (error) {
+        // If error is 409 Conflict (Already Liked), we don't need to revert
+        // because the goal state (Liked) matches the server state.
+        if (error.response && error.response.status === 409) {
+             console.warn("Comment was already liked (409 Conflict) - Resyncing UI state");
+             return; 
+        }
+
         console.error("Failed to toggle like on comment", error);
         // Revert on failure
         setComments(prev => prev.map(c => {

@@ -223,7 +223,19 @@ export function SocialCard({
 
           {/* Content section */}
           <p className="text-[15px] sm:text-base text-foreground/90 leading-relaxed mb-5 whitespace-pre-wrap">
-            {content?.text}
+            {content?.text && content.text.split(/(\s+)/).map((word, index) => {
+              if (word.startsWith('#') && word.length > 1) {
+                return (
+                  <span 
+                    key={index} 
+                    className="inline-flex items-center px-2 py-0.5 my-0.5 mx-0.5 bg-primary/10 text-primary border border-primary/20 rounded-md font-bold text-[13px] sm:text-sm transition-all duration-300 hover:bg-primary/20 hover:scale-105 cursor-pointer shadow-sm shadow-primary/5"
+                  >
+                    {word}
+                  </span>
+                );
+              }
+              return word;
+            })}
           </p>
 
           {/* Media Attachments */}

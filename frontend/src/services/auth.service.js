@@ -19,9 +19,7 @@ export const authService = {
 
   // Register
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const response = await api.post('/auth/register', userData);
     if (response?.accessToken) {
       localStorage.setItem('token', response.accessToken);
       if (response.refreshToken) {

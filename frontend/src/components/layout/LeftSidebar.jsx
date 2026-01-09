@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, User, Bell, Bookmark, Settings, Hash, LogOut, Search } from 'lucide-react';
+import { Home, User, Bell, Bookmark, Settings, Hash, LogOut, Search, Sparkles } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { openAuthModal } from '@/store/slices/uiSlice';
 import { logout } from '@/store/slices/authSlice';
@@ -27,6 +27,7 @@ export function LeftSidebar() {
 
   const navItems = [
     { icon: <Home className="w-6 h-6" />, label: "Home", href: "/" },
+    { icon: <Sparkles className="w-6 h-6" />, label: "Recommended", href: "/recommended", auth: true },
     { icon: <Search className="w-6 h-6" />, label: "Search", href: "/search" },
     { icon: <Bell className="w-6 h-6" />, label: "Notifications", href: "/notifications", auth: true },
     { icon: <User className="w-6 h-6" />, label: "Profile", href: "/profile/me", auth: true },
@@ -81,15 +82,15 @@ export function LeftSidebar() {
       )}
 
       {isAuthenticated && (
-        <div className="mt-auto px-2 pt-4">
+        <div className="mt-auto px-2 pt-4 border-t border-border/50">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 p-3 w-full rounded-2xl hover:bg-white/10 dark:hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 group relative overflow-hidden"
+            className="flex items-center gap-3 p-3 w-full rounded-2xl hover:bg-red-500/10 dark:hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200 group relative overflow-hidden"
           >
-             <div className="p-2 rounded-xl bg-white/5 dark:bg-white/5 group-hover:bg-red-500/20 text-muted-foreground group-hover:text-red-500 transition-colors">
+             <div className="p-2 rounded-xl bg-red-500/10 text-red-500 group-hover:bg-red-500 group-hover:text-white transition-all duration-300">
                 <LogOut className="w-5 h-5" />
              </div>
-             <span className="text-base font-bold text-muted-foreground group-hover:text-red-500 transition-colors hidden lg:block">Log out</span>
+             <span className="text-base font-bold text-red-500 transition-colors hidden lg:block">Log out</span>
           </button>
         </div>
       )}

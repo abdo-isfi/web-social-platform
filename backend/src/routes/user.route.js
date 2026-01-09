@@ -18,6 +18,8 @@ const optionalAuth = require("../middlewares/optionalAuth");
 router.get('/suggestions', authenticate, userController.getSuggestions);
 router.delete('/me', authenticate, userController.deleteAccount);
 router.put('/privacy', authenticate, userController.updatePrivacy);
+router.patch('/change-password', authenticate, userController.changePassword);
+router.post('/interests', authenticate, userController.saveInterests);
 router.get('/:userId', optionalAuth, getUserById);
 router.get('/:userId/posts', optionalAuth, userController.getUserPosts);
 

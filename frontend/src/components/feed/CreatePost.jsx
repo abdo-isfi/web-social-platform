@@ -1,13 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
-import { Image, Video, X, Smile } from 'lucide-react';
+import { Image, Video, X, Smile, Hash, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useTheme } from '@/hooks/useTheme';
 import EmojiPicker from 'emoji-picker-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { INTEREST_OPTIONS } from '@/constants/interests';
+import { TagsSelector } from './TagsSelector';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export function CreatePost({ onPost }) {
   const { user } = useSelector(state => state.auth);
@@ -16,12 +19,17 @@ export function CreatePost({ onPost }) {
   const [content, setContent] = useState('');
   const [media, setMedia] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedInterests, setSelectedInterests] = useState([]);
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const onEmojiClick = (emojiData) => {
     setContent(prev => prev + emojiData.emoji);
+  };
+
+  const handleInterestSelect = (tags) => {
+    setSelectedInterests(tags);
   };
 
   const handleMediaUpload = (e, type) => {
@@ -44,13 +52,23 @@ export function CreatePost({ onPost }) {
   };
 
   const handleSubmit = async () => {
-    if ((!content.trim() && media.length === 0) || loading) return;
+    if ((!content.trim() && media.length === 0) || loading || selectedInterests.length === 0) return;
 
     try {
       setLoading(true);
       // Create FormData to send file properly
       const formData = new FormData();
-      formData.append('content', content);
+      
+      // Append interest hashtags to content if they exist
+      let finalContent = content;
+      if (selectedInterests.length > 0) {
+        const hashtags = selectedInterests.map(id => `#${id}`).join(' ');
+        if (!finalContent.includes(hashtags)) { // Basic check, though usually we want to append anyway
+          finalContent = finalContent ? `${finalContent}\n\n${hashtags}` : hashtags;
+        }
+      }
+      
+      formData.append('content', finalContent);
       
       // Add the actual file (only first media item for now, backend expects single file)
       if (media.length > 0) {
@@ -61,6 +79,7 @@ export function CreatePost({ onPost }) {
 
       setContent('');
       setMedia([]);
+      setSelectedInterests([]);
     } catch (error) {
       console.error("Failed to create post:", error);
     } finally {
@@ -68,7 +87,7 @@ export function CreatePost({ onPost }) {
     }
   };
 
-  const isDisabled = !content.trim() && media.length === 0;
+  const isDisabled = !content.trim() && media.length === 0 || selectedInterests.length === 0;
 
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm transition-all hover:border-primary/20 group mx-2 md:mx-4">
@@ -81,22 +100,125 @@ export function CreatePost({ onPost }) {
               className="w-full h-full object-cover"
             />
          </div>
-        <div className="flex-1">
-          <textarea 
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onFocus={(e) => {
-              requireAuth(() => {}, 'login');
-              // If focused by guest, they will be redirected to login modal, 
-              // but we might want to blur it to prevent typing before modal opens if needed.
-              // requireAuth doesn't block the action if it's just a focus, but triggers the modal.
-            }}
-            placeholder="What is happening?!" 
-            className="w-full bg-transparent border-none text-lg text-foreground focus:ring-0 focus:outline-none outline-none placeholder:text-muted-foreground resize-none min-h-[60px] p-0"
-            rows={Math.max(2, content.split('\n').length)}
-            spellCheck="false"
-            data-gramm="false"
-          />
+        <div className="flex-1 space-y-4">
+          {/* Custom Multi-Interest Selector */}
+          <div className="relative">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button 
+                  className={cn(
+                    "flex items-center justify-between w-full px-5 py-4 rounded-2xl border transition-all duration-500 group/trigger cursor-pointer",
+                    selectedInterests.length > 0 
+                      ? "bg-primary/[0.03] border-primary/30 text-foreground shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-4 ring-primary/[0.02]" 
+                      : "bg-muted/20 border-border/40 text-muted-foreground hover:bg-muted/30 hover:border-border/60"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-500",
+                      selectedInterests.length > 0 
+                        ? "bg-primary/20 text-primary scale-110 rotate-3 shadow-xl shadow-primary/20" 
+                        : "bg-muted-foreground/10 text-muted-foreground"
+                    )}>
+                      <Hash className={cn("w-5 h-5", selectedInterests.length > 0 && "animate-pulse")} />
+                    </div>
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className={cn("text-sm font-black tracking-tight", selectedInterests.length > 0 ? "text-primary" : "text-muted-foreground")}>
+                        {selectedInterests.length > 0 
+                          ? `${selectedInterests.length} Categories Tagged` 
+                          : "Tag your post (Categories)"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.1em]">
+                        {selectedInterests.length > 0 ? "Added as hashtags" : "Select interests"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-2.5 overflow-hidden transition-transform duration-300 group-hover/trigger:scale-105">
+                      {selectedInterests.slice(0, 3).map((id) => {
+                        const option = INTEREST_OPTIONS.find(o => o.id === id);
+                        return (
+                          <div key={id} className="inline-block h-7 w-7 rounded-full ring-2 ring-card bg-muted flex items-center justify-center text-sm shadow-sm">
+                            {option?.icon}
+                          </div>
+                        );
+                      })}
+                      {selectedInterests.length > 3 && (
+                        <div className="inline-block h-7 w-7 rounded-full ring-2 ring-card bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black shadow-sm">
+                          +{selectedInterests.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/20 group-hover/trigger:bg-primary/10 transition-colors">
+                      <ChevronDown className={cn(
+                        "w-4 h-4 transition-transform duration-500",
+                        selectedInterests.length > 0 ? "text-primary" : "text-muted-foreground/40",
+                        "group-hover/trigger:translate-y-0.5"
+                      )} />
+                    </div>
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="p-4 w-[var(--radix-popover-trigger-width)] bg-card/95 backdrop-blur-3xl border-border/50 shadow-[0_25px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem] animate-in fade-in-0 zoom-in-95 duration-300 z-50 overflow-hidden" align="start" sideOffset={12}>
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
+                <div className="relative z-10">
+                  <TagsSelector 
+                    selectedTags={selectedInterests} 
+                    onTagsChange={handleInterestSelect} 
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <div className="relative group/textarea">
+            <textarea 
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onFocus={(e) => {
+                requireAuth(() => {}, 'login');
+              }}
+              placeholder="What is happening?!" 
+              className="w-full bg-transparent border-none text-[19px] text-foreground font-medium focus:ring-0 focus:outline-none outline-none placeholder:text-muted-foreground/50 resize-none min-h-[100px] p-0 transition-all duration-300"
+              rows={Math.max(2, content.split('\n').length)}
+              spellCheck="false"
+              data-gramm="false"
+            />
+            {content.length === 0 && (
+              <div className="absolute left-0 bottom-1 w-full h-[1px] bg-gradient-to-r from-primary/20 via-primary/5 to-transparent scale-x-0 group-focus-within/textarea:scale-x-100 transition-transform duration-700" />
+            )}
+          </div>
+
+          {/* Selected Tags Preview (Inline) */}
+          {selectedInterests.length > 0 && (
+            <div className="flex flex-wrap gap-2.5">
+              <AnimatePresence mode="popLayout">
+                {selectedInterests.map((id) => {
+                  const tag = INTEREST_OPTIONS.find(t => t.id === id);
+                  if (!tag) return null;
+                  return (
+                    <motion.div
+                      key={tag.id}
+                      layout
+                      initial={{ scale: 0.8, opacity: 0, y: 10 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.8, opacity: 0, y: -10 }}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary/10 backdrop-blur-md border border-primary/20 rounded-2xl group hover:bg-primary/20 hover:border-primary/40 transition-all cursor-default shadow-sm shadow-primary/5 active:scale-95"
+                    >
+                      <span className="text-sm group-hover:scale-110 transition-transform">{tag.icon}</span>
+                      <span className="text-xs font-black text-primary tracking-tight">#{tag.id}</span>
+                      <button 
+                        onClick={() => setSelectedInterests(prev => prev.filter(t => t !== id))}
+                        className="ml-1 p-1 bg-primary/10 hover:bg-primary/30 rounded-lg text-primary transition-all active:scale-90"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
           
           {/* Media Previews */}
           {media.length > 0 && (
@@ -199,7 +321,7 @@ export function CreatePost({ onPost }) {
            <Button 
              onClick={handleSubmit} 
              disabled={isDisabled || loading}
-             className="rounded-full font-black px-8 py-6 shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50"
+             className="rounded-2xl font-black px-10 py-7 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
            >
              {loading ? 'Posting...' : 'Post'}
            </Button>

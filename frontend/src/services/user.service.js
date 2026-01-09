@@ -32,4 +32,12 @@ export const userService = {
   deleteAccount: async () => {
     return await api.delete('/user/me');
   },
+  // Save interests
+  saveInterests: async (interests) => {
+    return await api.post('/user/interests', { interests });
+  },
+  // Change password
+  changePassword: async (currentPassword, newPassword, confirmPassword) => {
+    return await api.patch('/user/change-password', { currentPassword, newPassword, confirmPassword });
+  },
 };

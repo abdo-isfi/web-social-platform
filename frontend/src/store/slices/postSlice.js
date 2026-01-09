@@ -9,6 +9,13 @@ export const fetchPosts = createAsyncThunk(
   }
 );
 
+export const fetchRecommendedPosts = createAsyncThunk(
+  'posts/fetchRecommendedPosts',
+  async ({ page = 1, limit = 10 } = {}) => {
+    return await postService.getRecommendedFeed(page, limit);
+  }
+);
+
 export const createPost = createAsyncThunk(
   'posts/createPost',
   async (postData) => {
@@ -222,6 +229,22 @@ const postSlice = createSlice({
         state.currentPage = data.pagination?.currentPage || 1;
       })
       .addCase(fetchBookmarkedPosts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message;
+      })
+      // Fetch recommended posts
+      .addCase(fetchRecommendedPosts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchRecommendedPosts.fulfilled, (state, action) => {
+        state.loading = false;
+        const data = action.payload;
+        state.posts = data.threads || [];
+        state.hasMore = data.pagination ? data.pagination.currentPage < data.pagination.totalPages : false;
+        state.currentPage = data.pagination?.currentPage || 1;
+      })
+      .addCase(fetchRecommendedPosts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message;
       });

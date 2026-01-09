@@ -4,6 +4,7 @@ const initialState = {
   isAuthenticated: false,
   user: null,
   token: null,
+  isJustSignedUp: localStorage.getItem('isJustSignedUp') === 'true',
   loading: false,
   error: null,
 };
@@ -52,6 +53,8 @@ const authSlice = createSlice({
       if (action.payload.user) {
         localStorage.setItem('user', JSON.stringify(action.payload.user));
       }
+      state.isJustSignedUp = true;
+      localStorage.setItem('isJustSignedUp', 'true');
     },
     registerFailure: (state, action) => {
       state.loading = false;
@@ -75,6 +78,11 @@ const authSlice = createSlice({
       state.error = null;
       if (action.payload.token) localStorage.setItem('token', action.payload.token);
       if (action.payload.user) localStorage.setItem('user', JSON.stringify(action.payload.user));
+      state.isJustSignedUp = action.payload.isJustSignedUp || false;
+    },
+    completeOnboarding: (state) => {
+      state.isJustSignedUp = false;
+      localStorage.removeItem('isJustSignedUp');
     }
   },
 });
@@ -151,7 +159,7 @@ export const fetchMe = () => async (dispatch) => {
 export const { 
   loginStart, loginSuccess, loginFailure, logout,
   registerStart, registerSuccess, registerFailure,
-  clearError, updateUser, setAuth 
+  clearError, updateUser, setAuth, completeOnboarding 
 } = authSlice.actions;
 
 export default authSlice.reducer;

@@ -13,6 +13,7 @@ const envVar = require("../config/EnvVariable");
 
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
+  console.log("OptionalAuth: Header present?", !!authHeader); // DEBUG LOG
   
   // If no token, just move on as a Guest (req.user remains undefined)
   if (!authHeader) return next();
@@ -25,9 +26,11 @@ const optionalAuth = (req, res, next) => {
     req.user = payload; // Identifying the user to personalize the view
     next();
   } catch (err) {
-      // Even if token is invalid/expired, we don't throw an error. 
-      // We just treat them as a Guest.
-    next();
+    // CRITICAL FIX: If token is provided but expired/invalid, return 401.
+    // This allows the Frontend Interceptor to catch it, REFRESH the token, and retry.
+    // If we just called next(), the user would be treated as a guest, receiving 
+    // incorrect "isLiked: false" states, leading to 409 Conflicts on action.
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 

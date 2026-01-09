@@ -77,11 +77,31 @@ async function deleteFromMinIO(objectKey) {
 async function refreshPresignedUrl(objectKey) {
   return generatePresignedUrl(objectKey);
 }
+/**
+ * UPLOAD BUFFER TO CLOUD
+ * Directly sends a Buffer (from memory) to MinIO.
+ * Useful for handling file uploads without saving them to disk first.
+ */
+async function uploadBufferToMinIO(buffer, fileName, contentType) {
+  try {
+    const metaData = { 'Content-Type': contentType };
+
+    // 1. Send to MinIO
+    await minioClient.putObject(bucketName, fileName, buffer, buffer.length, metaData);
+
+    // 2. Generate a secure URL (valid for 24 hours)
+    const presignedUrl = await generatePresignedUrl(fileName);
+
+    return { key: fileName, url: presignedUrl };
+  } catch (error) {
+    throw new Error(`MinIO buffer upload failed: ${error.message}`);
+  }
+}
 
 module.exports = {
   generateUniqueFileName,
   uploadToMinIO,
-  uploadBufferToMinIO: async (buffer, fileName, contentType) => { /* Logic similar to above */ },
+  uploadBufferToMinIO,
   generatePresignedUrl,
   deleteFromMinIO,
   refreshPresignedUrl,

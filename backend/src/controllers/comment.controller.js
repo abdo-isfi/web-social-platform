@@ -15,6 +15,8 @@ const getComments = async (req, res) => {
     const { cursor } = req.query;
 
     let query = { thread: threadId };
+    if(req.user) console.log("getComments: User authenticated", req.user.id); // DEBUG LOG
+    else console.log("getComments: User is GUEST"); // DEBUG LOG
 
     if (cursor) {
        query.createdAt = { $gt: new Date(cursor) };
@@ -39,7 +41,11 @@ const getComments = async (req, res) => {
              const likeCount = await Like.countDocuments({ comment: comment._id });
              let isLiked = false;
              if(req.user) {
-                 isLiked = !!await Like.findOne({ user: req.user.id, comment: comment._id });
+                 // DEBUG: Deep inspection
+                 console.log(`[DEBUG] CheckLike: User=${req.user.id}, Comment=${comment._id}`);
+                 const likeDoc = await Like.findOne({ user: req.user.id, comment: comment._id });
+                 isLiked = !!likeDoc;
+                 console.log(`[DEBUG] Found? ${isLiked}`);
              }
              if (comment.author && comment.author.avatar && Buffer.isBuffer(comment.author.avatar)) {
                  comment.author.avatar = `data:${comment.author.avatarType};base64,${comment.author.avatar.toString('base64')}`;

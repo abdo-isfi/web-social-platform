@@ -11,6 +11,7 @@ const Notification = require('../models/notification.model');
 const { emitToUser, broadcast } = require('../socket');
 const { populateNotification } = require('../utils/notificationHelper');
 
+
 /**
  * HELPER: Update Like Count in Real-time
  * Uses WebSockets to tell the frontend exactly how many likes a post has
@@ -56,6 +57,8 @@ const likeThread = async (req, res) => {
 
     const existingLike = await Like.findOne(likeQuery);
     if (existingLike) {
+         console.log("CONFLICT LIKE FOUND:", existingLike);
+         console.log("QUERY WAS:", likeQuery);
          return responseHandler.error(res, "You have already liked this", statusCodes.CONFLICT);
     }
 

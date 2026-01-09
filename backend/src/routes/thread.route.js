@@ -33,6 +33,7 @@ router.post(
 router.get('/me', authMiddleware, pagination, createThread.getUserThreads);
 router.get('/archived', authMiddleware, pagination, createThread.getArchivedThreads);
 router.get('/bookmarks', authMiddleware, pagination, createThread.getBookmarkedThreads);
+router.get('/recommended', authMiddleware, pagination, createThread.getRecommendedFeed);
 router.get('/me/:threadId', authMiddleware, createThread.getThreadById);
 
 // MODIFYING POSTS

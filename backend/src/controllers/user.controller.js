@@ -7,8 +7,8 @@
 const User = require('../models/user.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
-const hashPassword = require('../utils/hashPassword'); 
-const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
+const { hashPassword, comparePassword } = require('../utils/hashPassword'); 
+const { uploadBufferToMinIO, generateUniqueFileName, refreshPresignedUrl } = require('../utils/minioHelper');
 
 /**
  * CREATE USER (Legacy/Admin Utility)
@@ -107,15 +107,80 @@ const updateProfile = async (req, res) => {
 
     await user.save();
 
+    // Refresh image URLs before sending response
+    if (user.avatar?.key) {
+      user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+    }
+    if (user.banner?.key) {
+      user.banner.url = await refreshPresignedUrl(user.banner.key);
+    }
+
     const userResponse = {
-        ...user.toObject(),
-        handle: user.handle
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      handle: user.handle,
+      isPrivate: user.isPrivate,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
 
     return responseHandler.success(res, userResponse, 'Profile updated successfully', statusCodes.UPDATED);
 
   } catch (error) {
     return responseHandler.error(res, 'Failed to update profile', statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const saveInterests = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { interests } = req.body;
+
+    if (!Array.isArray(interests) || interests.length === 0) {
+      return responseHandler.error(res, 'Please select at least one interest', statusCodes.BAD_REQUEST);
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return responseHandler.notFound(res, 'User');
+
+    // Remove duplicates and save
+    user.interests = [...new Set(interests)];
+    await user.save();
+
+    // Refresh URLs for response consistency
+    if (user.avatar?.key) user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+    if (user.banner?.key) user.banner.url = await refreshPresignedUrl(user.banner.key);
+
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      handle: user.handle,
+      isPrivate: user.isPrivate,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
+      interests: user.interests,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      birthday: user.birthday,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    return responseHandler.success(res, userResponse, 'Interests saved successfully', statusCodes.SUCCESS);
+  } catch (error) {
+    console.error('Save interests error:', error);
+    return responseHandler.error(res, 'Failed to save interests', statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -337,19 +402,48 @@ const deleteAccount = async (req, res) => {
 
     // Delete associated data first or handle orphans
     // For now, let's just delete the user.
-    // In a real app, you'd delete their threads, comments, likes, etc.
     const user = await User.findByIdAndDelete(userId);
     if (!user) return responseHandler.notFound(res, 'User');
-
-    // Clean up MinIO if needed (avatar, banner)
-    // const { deleteFromMinIO } = require('../utils/minioHelper');
-    // if (user.avatar?.key) await deleteFromMinIO(user.avatar.key);
-    // if (user.banner?.key) await deleteFromMinIO(user.banner.key);
 
     return responseHandler.success(res, null, 'Account deleted successfully', statusCodes.SUCCESS);
   } catch (error) {
     console.error('Delete account error:', error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    // 1. Basic validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return responseHandler.error(res, 'All fields are required', statusCodes.BAD_REQUEST);
+    }
+
+    if (newPassword !== confirmPassword) {
+      return responseHandler.error(res, 'New passwords do not match', statusCodes.BAD_REQUEST);
+    }
+
+    // 2. Find user
+    const user = await User.findById(userId);
+    if (!user) return responseHandler.notFound(res, 'User');
+
+    // 3. Verify current password
+    const isMatch = await comparePassword(currentPassword, user.password);
+    if (!isMatch) {
+      return responseHandler.error(res, 'Incorrect current password', statusCodes.UNAUTHORIZED);
+    }
+
+    // 4. Hash and save new password
+    user.password = await hashPassword(newPassword);
+    await user.save();
+
+    return responseHandler.success(res, null, 'Password changed successfully', statusCodes.SUCCESS);
+  } catch (error) {
+    console.error('Change password error:', error);
+    return responseHandler.error(res, 'Failed to change password', statusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -360,5 +454,7 @@ module.exports = {
   getUserPosts,
   getSuggestions,
   updatePrivacy,
-  deleteAccount
+  deleteAccount,
+  saveInterests,
+  changePassword
 };

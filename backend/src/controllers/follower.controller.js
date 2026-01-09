@@ -193,18 +193,20 @@ const acceptFollowRequest = async (req, res) => {
       );
     }
 
-    const followRequest = await Follow.findOne({
-      follower: followerId,
-      following: followingId,
-      status: "PENDING"
-    });
+    // Use findOneAndUpdate for atomicity - prevents race condition if accept is clicked twice
+    const followRequest = await Follow.findOneAndUpdate(
+      {
+        follower: followerId,
+        following: followingId,
+        status: "PENDING"
+      },
+      { status: "ACCEPTED" },
+      { new: true }
+    );
 
     if (!followRequest) {
       return responseHandler.notFound(res, "Follow request");
     }
-
-    followRequest.status = "ACCEPTED";
-    await followRequest.save();
 
     // Atomic increment counts
     await User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });

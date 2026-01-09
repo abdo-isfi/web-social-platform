@@ -13,6 +13,7 @@ export default function SearchPage() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
   const { isAuthenticated } = useSelector(state => state.auth);
+  const { results, loading, query: globalQuery } = useSelector(state => state.search);
   const [localQuery, setLocalQuery] = useState(globalQuery || '');
 
   // Update local query when global query changes (e.g. from right sidebar) or auth status changes
@@ -23,11 +24,23 @@ export default function SearchPage() {
     }
   }, [globalQuery, isAuthenticated, dispatch]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localQuery.trim()) {
+        dispatch(setGlobalQuery(localQuery));
+        dispatch(performSearch({ query: localQuery, type: 'people' }));
+      }
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [localQuery, dispatch]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (localQuery.trim()) {
       dispatch(setGlobalQuery(localQuery));
-      dispatch(performSearch({ query: localQuery, type: 'people' })); // Focus on people
+      dispatch(performSearch({ query: localQuery, type: 'people' }));
     }
   };
 

@@ -653,6 +653,70 @@ const getBookmarkedThreads = async (req, res) => {
   }
 };
 
+/**
+ * GET RECOMMENDED FEED
+ * Shows posts with hashtags matching the user's interests
+ */
+const getRecommendedFeed = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page, limit } = req.pagination;
+    const skip = (page - 1) * limit;
+
+    // Get user's interests
+    const user = await User.findById(userId).select('interests');
+    if (!user || !user.interests || user.interests.length === 0) {
+      return responseHandler.success(res, {
+        threads: [],
+        pagination: { totalThreads: 0, totalPages: 0, currentPage: page, pageSize: limit },
+        message: 'No interests selected. Please select interests to see recommended posts.'
+      }, "No interests found", statusCodes.SUCCESS);
+    }
+
+    // Filter: posts with hashtags matching user's interests
+    const filter = {
+      isArchived: false,
+      parentThread: null,
+      hashtags: { $in: user.interests } // Match any hashtag that's in user's interests
+    };
+
+    // Exclude private users unless following
+    const following = await Follow.find({ follower: userId, status: 'ACCEPTED' }).select('following');
+    const followingIds = following.map(f => f.following);
+    followingIds.push(userId);
+
+    const privateUsers = await User.find({ isPrivate: true, _id: { $nin: followingIds } }).select('_id');
+    filter.author = { $nin: privateUsers.map(u => u._id) };
+
+    const threads = await Thread.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('author', '_id firstName lastName avatar avatarType')
+      .populate({
+        path: 'repostOf',
+        populate: { path: 'author', select: '_id firstName lastName avatar avatarType' }
+      })
+      .lean();
+
+    const formattedThreads = (await Promise.all(
+      threads.map(thread => formatThreadResponse(thread, userId))
+    )).filter(thread => thread !== null);
+
+    const totalThreads = await Thread.countDocuments(filter);
+    const totalPages = Math.ceil(totalThreads / limit);
+
+    return responseHandler.success(res, {
+      threads: formattedThreads,
+      pagination: { totalThreads, totalPages, currentPage: page, pageSize: limit }
+    }, "Recommended feed fetched successfully", statusCodes.SUCCESS);
+
+  } catch (error) {
+    console.error("Get recommended feed error:", error);
+    return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 module.exports = {
   createThread,
   getUserThreads,
@@ -663,6 +727,7 @@ module.exports = {
   unarchiveThread,
   deleteThread,
   getFeed,
+  getRecommendedFeed,
   repostThread,
   unrepostThread,
   bookmarkThread,

@@ -13,7 +13,7 @@ const { statusCodes } = require('../utils/statusCodes');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const generateTokens = require('../utils/generateToken');
 const envVar = require('../config/EnvVariable');
-const { uploadBufferToMinIO, generateUniqueFileName } = require('../utils/minioHelper');
+const { uploadBufferToMinIO, generateUniqueFileName, refreshPresignedUrl } = require('../utils/minioHelper');
 
 /**
  * REGISTER NEW USER
@@ -68,13 +68,15 @@ const register = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      handle: user.handle,
       isPrivate: user.isPrivate,
-      avatar: user.avatar || null,
-      banner: user.banner || null,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
       bio: user.bio,
       location: user.location,
       website: user.website,
       birthday: user.birthday,
+      interests: user.interests,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -91,6 +93,7 @@ const register = async (req, res) => {
     return responseHandler.success(res, { user: userResponse, accessToken }, 'User registered successfully', statusCodes.CREATED);
 
   } catch (error) {
+    console.error('Registration error:', error);
     return responseHandler.error(res, 'Failed to register user', statusCodes.INTERNAL_SERVER_ERROR, error.message);
   }
 };
@@ -117,6 +120,14 @@ const login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
+    // Refresh image URLs before sending response
+    if (user.avatar?.key) {
+      user.avatar.url = await refreshPresignedUrl(user.avatar.key);
+    }
+    if (user.banner?.key) {
+      user.banner.url = await refreshPresignedUrl(user.banner.key);
+    }
+
     const userResponse = {
       _id: user._id,
       firstName: user.firstName,
@@ -124,12 +135,13 @@ const login = async (req, res) => {
       email: user.email,
       handle: user.handle,
       isPrivate: user.isPrivate,
-      avatar: user.avatar || null,
-      banner: user.banner || null,
+      avatar: user.avatar?.url || null,
+      banner: user.banner?.url || null,
       bio: user.bio,
       location: user.location,
       website: user.website,
       birthday: user.birthday,
+      interests: user.interests,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
@@ -243,6 +255,7 @@ const getCurrentUser = async (req, res) => {
       location: user.location,
       website: user.website,
       birthday: user.birthday,
+      interests: user.interests,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
