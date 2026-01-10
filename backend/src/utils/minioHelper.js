@@ -9,6 +9,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { minioClient, bucketName } = require('../config/minio');
+const envVar = require('../config/EnvVariable');
 
 /**
  * Ensures every file has a totally unique name.
@@ -50,12 +51,14 @@ async function uploadToMinIO(filePath, fileName, contentType) {
  * allows someone to see a private image for a limited time.
  */
 async function generatePresignedUrl(objectKey, expirySeconds = 24 * 60 * 60) {
-  try {
-    const presignedUrl = await minioClient.presignedGetObject(bucketName, objectKey, expirySeconds);
-    return presignedUrl;
-  } catch (error) {
-    throw new Error(`Failed to generate secure URL: ${error.message}`);
+  // Use public URL directly
+  // This bypasses the signature mismatch issues between Docker and localhost
+  if (envVar.MINIO_URL) {
+    return `${envVar.MINIO_URL}/${bucketName}/${objectKey}`;
   }
+  
+  // Fallback default
+  return `http://localhost:9002/${bucketName}/${objectKey}`;
 }
 
 /**

@@ -12,6 +12,7 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { PostComments } from '@/components/feed/PostComments';
 import { postService } from '@/services/post.service';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 
 export function ArchivedPostsPage() {
   const dispatch = useDispatch();
@@ -154,7 +155,7 @@ export function ArchivedPostsPage() {
                   author={{
                     _id: post.author?._id || post.author?.id,
                     name: `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim() || 'Unknown',
-                    avatar: post.author?.avatar || 'https://github.com/shadcn.png',
+                    avatar: post.author?.avatar || DEFAULT_AVATAR,
                     timeAgo: post.createdAt ? formatRelativeTime(post.createdAt) : 'Just now',
                   }}
               content={{ text: post.content || '', media: post.media ? (Array.isArray(post.media) ? post.media : [post.media]) : [], link: post.link }}

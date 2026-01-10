@@ -11,6 +11,7 @@ const envVar={
     MINIO_ROOT_PASSWORD:process.env.MINIO_ROOT_PASSWORD,
     MINIO_BUCKET:process.env.MINIO_BUCKET,
     MINIO_URL:process.env.MINIO_URL,
-    MINIO_USE_SSL:process.env.MINIO_USE_SSL === 'true'
+    MINIO_USE_SSL:process.env.MINIO_USE_SSL === 'true',
+    VITE_CLIENT_URL:process.env.VITE_CLIENT_URL || 'http://localhost:8080'
 };
 module.exports=envVar;

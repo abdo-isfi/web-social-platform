@@ -11,6 +11,7 @@ import { postService } from '@/services/post.service';
 import { Sparkles, MessageSquare } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 import { PostComments } from '@/components/feed/PostComments';
 import { EditPostModal } from '@/components/modals/EditPostModal';
 import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
@@ -158,7 +159,6 @@ export function RecommendedPage() {
             {posts.map(post => {
               const isRepost = !!post.repostOf;
               const displayPost = isRepost ? post.repostOf : post;
-              const authorAvatar = displayPost.author?.avatar?.url || displayPost.author?.avatar || 'https://github.com/shadcn.png';
               
               return (
                 <SocialCard
@@ -170,7 +170,7 @@ export function RecommendedPage() {
                   author={{
                     _id: displayPost.author?._id || displayPost.author?.id,
                     name: `${displayPost.author?.firstName || ''} ${displayPost.author?.lastName || ''}`.trim() || 'Unknown',
-                    avatar: authorAvatar,
+                    avatar: displayPost.author?.avatar?.url || displayPost.author?.avatar || DEFAULT_AVATAR,
                     timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                     handle: displayPost.author?.handle,
                   }}

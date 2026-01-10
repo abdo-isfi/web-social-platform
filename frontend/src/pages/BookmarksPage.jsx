@@ -9,6 +9,7 @@ import { followerService } from '@/services/follower.service';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { PostComments } from '@/components/feed/PostComments';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 
 export function BookmarksPage() {
   const dispatch = useDispatch();
@@ -199,7 +200,7 @@ export function BookmarksPage() {
                         author={{
                     _id: post.author?._id || post.author?.id,
                     name: `${post.author?.firstName || ''} ${post.author?.lastName || ''}`.trim() || 'Unknown',
-                    avatar: post.author?.avatar || 'https://github.com/shadcn.png',
+                    avatar: post.author?.avatar || DEFAULT_AVATAR,
                     timeAgo: post.createdAt ? formatRelativeTime(post.createdAt) : 'Just now',
                   }}
                         content={{

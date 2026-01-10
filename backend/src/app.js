@@ -12,6 +12,7 @@ const cors = require('cors'); // Cross-Origin Resource Sharing (allows frontend 
 const morgan = require('morgan'); // Logger (prints every request to the console)
 const rateLimit = require('express-rate-limit'); // Prevention of Brute-Force/DOS attacks
 const cookieParser = require("cookie-parser"); // Parses cookies from requests
+const envVar = require("./config/EnvVariable");
 
 // Import Routes (The different departments of our app)
 const authRoute = require("./routes/auth.route");
@@ -44,9 +45,9 @@ app.use(limiter);
 // 2. Helmet: Adds security headers to protect against common web vulnerabilities.
 app.use(helmet());
 
-// 3. CORS: Allows your frontend (running on port 5173) to communicate with this backend.
+// 3. CORS: Allows your frontend to communicate with this backend.
 app.use(cors({
-  origin: 'http://localhost:5173', 
+  origin: envVar.VITE_CLIENT_URL, 
   credentials: true, // Crucial for sending/receiving cookies (JWT)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -72,6 +73,9 @@ app.use("/api/like", likeRouter);        // Like/Unlike logic
 app.use("/api/follower", followerRoute); // Follow/Unfollow/Requests
 app.use("/api/notification", notificationRoute); // User notifications
 app.use("/api/search", require("./routes/search.route")); // Search functionality
-
+//testing
+app.use("/",(req,res)=>{
+  res.send("Welcome to the Social Media API")
+})
 // Export the app to be used in server.js
 module.exports = app;

@@ -12,6 +12,7 @@ import { userService } from '@/services/user.service';
 import { postService } from '@/services/post.service';
 import { followUser, unfollowUser } from '@/store/slices/userSlice';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 import { MapPin, Link as LinkIcon, Calendar, MessageSquare, Lock, Cake } from 'lucide-react';
 import { openAuthModal } from '@/store/slices/uiSlice';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
@@ -611,7 +612,7 @@ export function ProfilePage() {
                     author={{
                       _id: displayPost.author?._id || displayPost.author?.id,
                       name: `${displayPost.author?.firstName || ''} ${displayPost.author?.lastName || ''}`.trim() || 'Unknown',
-                      avatar: displayPost.author?.avatar || 'https://github.com/shadcn.png',
+                      avatar: displayPost.author?.avatar || DEFAULT_AVATAR,
                       timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                     }}
                     content={{

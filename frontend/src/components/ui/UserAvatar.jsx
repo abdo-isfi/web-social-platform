@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { cn } from '@/lib/utils';
+import { DEFAULT_AVATAR } from "@/lib/constants";
 
 /**
  * UserAvatar component that automatically uses the latest current user avatar
@@ -38,7 +39,7 @@ export function UserAvatar({ user, className, ...props }) {
   const displayName = user?.firstName || user?.lastName || 'U';
   const initial = displayName.charAt(0).toUpperCase();
 
-  const finalSrc = (!hasError && avatarUrl) ? avatarUrl : "https://github.com/shadcn.png";
+  const finalSrc = (!hasError && avatarUrl) ? avatarUrl : DEFAULT_AVATAR;
 
   return (
     <img

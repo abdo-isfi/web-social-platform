@@ -235,9 +235,9 @@ const updateThread = async (req, res) => {
         if (thread.media && thread.media.key) {
           try {
             await deleteFromMinIO(thread.media.key);
-            console.log(`✓ Old media deleted from MinIO: ${thread.media.key}`);
+            console.log(`Old media deleted from MinIO: ${thread.media.key}`);
           } catch (deleteError) {
-            console.warn(`⚠ Failed to delete old media: ${deleteError.message}`);
+            console.warn(`Failed to delete old media: ${deleteError.message}`);
             // Continue with upload even if deletion fails
           }
         }
@@ -264,7 +264,7 @@ const updateThread = async (req, res) => {
           contentType: req.file.mimetype,
         };
         
-        console.log(`✓ Media updated successfully: ${key}`);
+        console.log(`Media updated successfully: ${key}`);
       } catch (uploadError) {
         console.error("MinIO upload error:", uploadError);
         
@@ -288,9 +288,9 @@ const updateThread = async (req, res) => {
         try {
           const { deleteFromMinIO } = require('../utils/minioHelper');
           await deleteFromMinIO(thread.media.key);
-          console.log(`✓ Media deleted from MinIO: ${thread.media.key}`);
+          console.log(`Media deleted from MinIO: ${thread.media.key}`);
         } catch (deleteError) {
-          console.warn(`⚠ Failed to delete media: ${deleteError.message}`);
+          console.warn(`Failed to delete media: ${deleteError.message}`);
         }
       }
       thread.media = null;

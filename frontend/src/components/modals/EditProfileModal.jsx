@@ -10,6 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
 import { format, parseISO, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { DEFAULT_AVATAR, DEFAULT_BANNER } from '@/lib/constants';
 
 export function EditProfileModal({ isOpen, onClose, onSuccess }) {
   const dispatch = useDispatch();
@@ -38,7 +39,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
         website: user.website || '',
         birthday: user.birthday || '',
         avatar: user.avatar || '',
-        banner: user.banner || 'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop',
+        banner: user.banner || DEFAULT_BANNER,
         isPrivate: user.isPrivate || false,
         showBirthday: user.showBirthday !== false // Default to true if not specified
       });
@@ -135,13 +136,13 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
     setNewAvatarFile(null); // Assuming delete means revert or empty? currently implementation sets string url. 
     // Backend doesn't support deleting yet, just replacing. 
     // But setting avatar to default string won't persist if backend expects file or string url in body.
-    setFormData(prev => ({ ...prev, avatar: "https://github.com/shadcn.png" }));
+    setFormData(prev => ({ ...prev, avatar: DEFAULT_AVATAR }));
     setShowPhotoMenu(false);
   };
 
   const handleDeleteBanner = () => {
     setNewBannerFile(null);
-    setFormData(prev => ({ ...prev, banner: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop" }));
+    setFormData(prev => ({ ...prev, banner: DEFAULT_BANNER }));
     setShowBannerMenu(false);
   };
 
@@ -194,7 +195,7 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
               alt="Banner" 
               className="w-full h-full object-cover opacity-80"
               onError={(e) => {
-                e.target.src = "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2670&auto=format&fit=crop";
+                e.target.src = DEFAULT_BANNER;
               }}
            />
            <div 
@@ -248,11 +249,11 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
            <div className="absolute -top-[50px] left-6">
               <div className="relative group">
                 <img 
-                  src={formData.avatar || "https://github.com/shadcn.png"} 
+                  src={formData.avatar || DEFAULT_AVATAR} 
                   alt="Profile" 
                   className="w-[100px] h-[100px] rounded-full object-cover border-4 border-background"
                   onError={(e) => {
-                    e.target.src = "https://github.com/shadcn.png";
+                    e.target.src = DEFAULT_AVATAR;
                   }}
                 />
                 <div 

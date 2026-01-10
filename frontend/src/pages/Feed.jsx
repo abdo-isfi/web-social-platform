@@ -12,6 +12,7 @@ import { MessageSquare, LayoutGrid, Users } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { setFeedMode } from '@/store/slices/uiSlice';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import { DEFAULT_AVATAR } from '@/lib/constants';
 import { PostComments } from '@/components/feed/PostComments';
 import { EditPostModal } from '@/components/modals/EditPostModal';
 import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
@@ -199,7 +200,7 @@ export default function Feed() {
               const displayPost = isRepost ? post.repostOf : post;
               
               // Formatting author avatar for displayPost if it was populated but not formatted
-              const authorAvatar = displayPost.author?.avatar || 'https://github.com/shadcn.png';
+              
               
               return (
                 <SocialCard
@@ -211,7 +212,7 @@ export default function Feed() {
                   author={{
                     _id: displayPost.author?._id || displayPost.author?.id,
                     name: `${displayPost.author?.firstName || ''} ${displayPost.author?.lastName || ''}`.trim() || 'Unknown',
-                    avatar: authorAvatar,
+                    avatar: displayPost.author?.avatar || DEFAULT_AVATAR,
                     timeAgo: displayPost.createdAt ? formatRelativeTime(displayPost.createdAt) : 'Just now',
                   }}
                   content={{

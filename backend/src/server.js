@@ -6,8 +6,11 @@
  * and starts them up in the correct order.
  */
 
+// 1. Load Environment Variables FIRST (before anything else)
+const envVar = require("./config/EnvVariable"); 
+
+// 2. Gather other components
 const app = require("./app"); // The Express application logic
-const envVar = require("./config/EnvVariable"); // Environment variables (Port, DB URI, etc.)
 const connectDB = require("./config/Db"); // Database connection logic
 const http = require("http"); // Node's built-in HTTP module to create the server
 const { initSocket } = require("./socket"); // Real-time notification logic (Socket.io)

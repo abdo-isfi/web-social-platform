@@ -27,7 +27,6 @@ export function LeftSidebar() {
 
   const navItems = [
     { icon: <Home className="w-6 h-6" />, label: "Home", href: "/" },
-    { icon: <Sparkles className="w-6 h-6" />, label: "Recommended", href: "/recommended", auth: true },
     { icon: <Search className="w-6 h-6" />, label: "Search", href: "/search" },
     { icon: <Bell className="w-6 h-6" />, label: "Notifications", href: "/notifications", auth: true },
     { icon: <User className="w-6 h-6" />, label: "Profile", href: "/profile/me", auth: true },

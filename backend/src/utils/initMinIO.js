@@ -30,30 +30,25 @@ async function initMinIO() {
       // Create bucket if it doesn't exist
       await minioClient.makeBucket(bucketName, 'us-east-1');
       console.log(`✓ MinIO bucket '${bucketName}' created successfully`);
-
-      // Set bucket policy for presigned URL access
-      // Private bucket - access only via presigned URLs
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${bucketName}/*`],
-            Condition: {
-              StringEquals: {
-                's3:signatureversion': 'AWS4-HMAC-SHA256'
-              }
-            }
-          }
-        ]
-      };
-
-      // Note: For presigned URLs to work, we don't need to set a public policy
-      // The bucket remains private, and presigned URLs provide temporary access
-      console.log(`✓ MinIO bucket '${bucketName}' configured for presigned URL access`);
     }
+
+    // Set Public Bucket Policy (Always update this to adhere to latest security config)
+    // This allows direct access to files via http://localhost:9002/bucket/filename
+    const policy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::${bucketName}/*`]
+        }
+      ]
+    };
+    
+    // Apply the policy (works for both new and existing buckets)
+    await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+    console.log(`✓ MinIO bucket '${bucketName}' configured with PUBLIC read access`);
 
     // Note: setBucketCors is not supported in this version of the MinIO client
     // CORS should be configured via the MinIO Console if needed

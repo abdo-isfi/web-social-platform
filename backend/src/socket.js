@@ -1,3 +1,4 @@
+const envVar = require("./config/EnvVariable");
 let io;
 const connectedUsers = new Map();
 
@@ -6,7 +7,7 @@ const initSocket = (server) => {
 
   io = new Server(server, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: envVar.VITE_CLIENT_URL,
       methods: ["GET", "POST", "PATCH"],
       credentials: true
     }

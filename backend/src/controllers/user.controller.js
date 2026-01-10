@@ -8,7 +8,7 @@ const User = require('../models/user.model');
 const responseHandler = require('../utils/responseHandler');
 const { statusCodes } = require('../utils/statusCodes');
 const { hashPassword, comparePassword } = require('../utils/hashPassword'); 
-const { uploadBufferToMinIO, generateUniqueFileName, refreshPresignedUrl } = require('../utils/minioHelper');
+const { uploadBufferToMinIO, generateUniqueFileName, refreshPresignedUrl, deleteFromMinIO } = require('../utils/minioHelper');
 
 /**
  * CREATE USER (Legacy/Admin Utility)
@@ -70,7 +70,7 @@ const updateProfile = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return responseHandler.notFound(res, 'User');
 
-    const { email, password, isPrivate, firstName, lastName, bio, location, website, birthday, showBirthday } = req.body;
+    const { email, password, isPrivate, firstName, lastName, bio, location, website, birthday, showBirthday, avatar, banner } = req.body;
 
     if (email && email.toLowerCase() !== user.email) {
       if (await User.findOne({ email: email.toLowerCase() })) return responseHandler.error(res, 'Email exists', statusCodes.CONFLICT);
@@ -91,18 +91,50 @@ const updateProfile = async (req, res) => {
     if (showBirthday !== undefined) user.showBirthday = showBirthday === true || showBirthday === 'true';
 
     // 4. Handle FILE UPLOADS (Avatar/Banner)
+    // Priority: New File > String URL (Delete/Reset) > Keep Existing
+
+    // --- BANNER ---
     if (req.files?.banner) {
+      // 1. Upload new file
       const fileName = generateUniqueFileName(req.files.banner[0].originalname);
       const { url, key } = await uploadBufferToMinIO(req.files.banner[0].buffer, fileName, req.files.banner[0].mimetype);
+      
+      // 2. Delete old file if exists
+      if (user.banner?.key) {
+        try { await deleteFromMinIO(user.banner.key); } catch (e) { console.error('Failed to delet old banner', e); }
+      }
+
       user.banner = { url, key };
       user.bannerType = req.files.banner[0].mimetype;
+    } else if (banner && banner !== user.banner?.url) {
+      // Handle Deletion/Reset (Frontend sent a string URL)
+      if (user.banner?.key) {
+        try { await deleteFromMinIO(user.banner.key); } catch (e) { console.error('Failed to delet old banner', e); }
+      }
+      user.banner = { url: banner, key: null };
+      user.bannerType = null;
     }
 
+    // --- AVATAR ---
     if (req.files?.avatar) {
+      // 1. Upload new file
       const fileName = generateUniqueFileName(req.files.avatar[0].originalname);
       const { url, key } = await uploadBufferToMinIO(req.files.avatar[0].buffer, fileName, req.files.avatar[0].mimetype);
+
+      // 2. Delete old file if exists
+      if (user.avatar?.key) {
+        try { await deleteFromMinIO(user.avatar.key); } catch (e) { console.error('Failed to delet old avatar', e); }
+      }
+
       user.avatar = { url, key };
       user.avatarType = req.files.avatar[0].mimetype;
+    } else if (avatar && avatar !== user.avatar?.url) {
+      // Handle Deletion/Reset (Frontend sent a string URL)
+      if (user.avatar?.key) {
+        try { await deleteFromMinIO(user.avatar.key); } catch (e) { console.error('Failed to delet old avatar', e); }
+      }
+      user.avatar = { url: avatar, key: null };
+      user.avatarType = null;
     }
 
     await user.save();
