@@ -1,5 +1,5 @@
 const Joi = require('joi');
-
+//regex pattern for mongodb object id
 const objectIdPattern = /^[0-9a-fA-F]{24}$/;
 
 const createThreadSchema = Joi.object({
