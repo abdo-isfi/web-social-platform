@@ -29,8 +29,14 @@ export function NotificationsPopover() {
     dispatch(markNotificationAsRead(id));
   };
 
+  const handleOpenChange = (open) => {
+      if (open && unreadCount > 0) {
+          dispatch(markAllNotificationsAsRead());
+      }
+  };
+
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button size="icon" variant="ghost" className="relative rounded-full w-10 h-10 hover:bg-zinc-100 dark:hover:bg-zinc-800" aria-label="Open notifications">
           <Bell size={20} strokeWidth={2} aria-hidden="true" className="text-zinc-600 dark:text-zinc-300" />
@@ -44,11 +50,7 @@ export function NotificationsPopover() {
       <PopoverContent className="w-80 p-1 mr-4" align="end">
         <div className="flex items-baseline justify-between gap-4 px-3 py-2">
           <div className="text-sm font-semibold">Notifications</div>
-          {unreadCount > 0 && (
-            <button className="text-xs font-medium text-primary hover:underline" onClick={handleMarkAllAsRead}>
-              Mark all as read
-            </button>
-          )}
+
         </div>
         <div
           role="separator"

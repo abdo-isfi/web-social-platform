@@ -20,6 +20,8 @@ export function NotificationsPage() {
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchAllNotifications());
+      // Automatically mark all as read when entering the page
+      dispatch(markAllNotificationsAsRead());
     }
   }, [dispatch, isAuthenticated]);
 
@@ -56,18 +58,6 @@ export function NotificationsPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleMarkAllAsRead}
-              className="rounded-full gap-2 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all font-medium"
-            >
-              <CheckCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Mark all as read</span>
-              <span className="sm:hidden">Read all</span>
-            </Button>
-          )}
 
           {notifications.length > 0 && (
             <Button 

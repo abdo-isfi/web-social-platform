@@ -79,7 +79,7 @@ export function PostComments({ postId, newComment, updatedComment, deletedCommen
     }
   };
 
-  const handeLoadMore = async () => {
+  const handleLoadMore = async () => {
     if (!nextCursor) {
         setIsExpanded(true);
         return;
@@ -99,6 +99,7 @@ export function PostComments({ postId, newComment, updatedComment, deletedCommen
       
     } catch (err) {
       console.error("Failed to load more comments", err);
+    } finally {
       setLoadingMore(false);
     }
   };
@@ -200,7 +201,7 @@ export function PostComments({ postId, newComment, updatedComment, deletedCommen
       <div className="flex items-center gap-4">
         {(hasMore || (comments.length > 3 && !isExpanded)) && (
             <button 
-                onClick={handeLoadMore} 
+                onClick={handleLoadMore} 
                 disabled={loadingMore}
                 className="text-sm text-primary hover:underline font-medium disabled:opacity-50"
             >
@@ -306,7 +307,13 @@ function CommentItem({ comment, onReply, handleLikeCommment, isReply, currentUse
                         )}
                     </div>
                 </div>
-                <p className="text-sm text-foreground/90">{comment.content}</p>
+                <p className="text-sm text-foreground/90">
+                    {comment.content.split(/(@\w+(?:\s\w+)?)/g).map((part, index) => (
+                        part.startsWith('@') ? (
+                            <span key={index} className="text-primary font-medium">{part}</span>
+                        ) : part
+                    ))}
+                </p>
                 
                 {/* Actions */}
                 <div className="flex items-center gap-4 pt-1">

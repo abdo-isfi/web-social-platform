@@ -101,75 +101,7 @@ export function CreatePost({ onPost }) {
             />
          </div>
         <div className="flex-1 space-y-4">
-          {/* Custom Multi-Interest Selector */}
-          <div className="relative">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button 
-                  className={cn(
-                    "flex items-center justify-between w-full px-5 py-4 rounded-2xl border transition-all duration-500 group/trigger cursor-pointer",
-                    selectedInterests.length > 0 
-                      ? "bg-primary/[0.03] border-primary/30 text-foreground shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-4 ring-primary/[0.02]" 
-                      : "bg-muted/20 border-border/40 text-muted-foreground hover:bg-muted/30 hover:border-border/60"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-500",
-                      selectedInterests.length > 0 
-                        ? "bg-primary/20 text-primary scale-110 rotate-3 shadow-xl shadow-primary/20" 
-                        : "bg-muted-foreground/10 text-muted-foreground"
-                    )}>
-                      <Hash className={cn("w-5 h-5", selectedInterests.length > 0 && "animate-pulse")} />
-                    </div>
-                    <div className="flex flex-col items-start gap-0.5">
-                      <span className={cn("text-sm font-black tracking-tight", selectedInterests.length > 0 ? "text-primary" : "text-muted-foreground")}>
-                        {selectedInterests.length > 0 
-                          ? `${selectedInterests.length} Categories Tagged` 
-                          : "Tag your post (Categories)"}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-[0.1em]">
-                        {selectedInterests.length > 0 ? "Added as hashtags" : "Select interests"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex -space-x-2.5 overflow-hidden transition-transform duration-300 group-hover/trigger:scale-105">
-                      {selectedInterests.slice(0, 3).map((id) => {
-                        const option = INTEREST_OPTIONS.find(o => o.id === id);
-                        return (
-                          <div key={id} className="inline-block h-7 w-7 rounded-full ring-2 ring-card bg-muted flex items-center justify-center text-sm shadow-sm">
-                            {option?.icon}
-                          </div>
-                        );
-                      })}
-                      {selectedInterests.length > 3 && (
-                        <div className="inline-block h-7 w-7 rounded-full ring-2 ring-card bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black shadow-sm">
-                          +{selectedInterests.length - 3}
-                        </div>
-                      )}
-                    </div>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-muted/20 group-hover/trigger:bg-primary/10 transition-colors">
-                      <ChevronDown className={cn(
-                        "w-4 h-4 transition-transform duration-500",
-                        selectedInterests.length > 0 ? "text-primary" : "text-muted-foreground/40",
-                        "group-hover/trigger:translate-y-0.5"
-                      )} />
-                    </div>
-                  </div>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="p-4 w-[var(--radix-popover-trigger-width)] bg-card/95 backdrop-blur-3xl border-border/50 shadow-[0_25px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem] animate-in fade-in-0 zoom-in-95 duration-300 z-50 overflow-hidden" align="start" sideOffset={12}>
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
-                <div className="relative z-10">
-                  <TagsSelector 
-                    selectedTags={selectedInterests} 
-                    onTagsChange={handleInterestSelect} 
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+
           
           <div className="relative group/textarea">
             <textarea 
@@ -261,6 +193,37 @@ export function CreatePost({ onPost }) {
           >
             <Video className="w-5 h-5" />
           </button>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+               <button 
+                 className={cn(
+                   "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ml-1",
+                   selectedInterests.length > 0 
+                     ? "bg-primary/10 text-primary ring-1 ring-primary/20" 
+                     : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                 )}
+               >
+                 <Hash className="w-3.5 h-3.5" />
+                 <span>{selectedInterests.length > 0 ? `${selectedInterests.length} Topics` : "Topics"}</span>
+                 <ChevronDown className="w-3 h-3 opacity-50" />
+               </button>
+            </PopoverTrigger>
+            <PopoverContent 
+               className="p-4 w-[380px] bg-card/95 backdrop-blur-3xl border-border/50 shadow-[0_25px_60px_rgba(0,0,0,0.4)] rounded-[2rem] animate-in fade-in-0 zoom-in-95 duration-300 z-50 overflow-hidden" 
+               align="start" 
+               side="bottom"
+               sideOffset={12}
+            >
+               <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
+               <div className="relative z-10">
+                 <TagsSelector 
+                   selectedTags={selectedInterests} 
+                   onTagsChange={handleInterestSelect} 
+                 />
+               </div>
+            </PopoverContent>
+          </Popover>
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
             <PopoverTrigger asChild>
               <button 

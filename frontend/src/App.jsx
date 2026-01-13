@@ -12,6 +12,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { SplashScreen } from '@/components/ui/SplashScreen'; // Import SplashScreen
+import { motion, AnimatePresence } from 'framer-motion'; // Import framer-motion
 
 // Layout and Pages
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -86,6 +88,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   const dispatch = useDispatch();
   const [isRehydrating, setIsRehydrating] = useState(true); // Loading state while restoring auth
+  const [showSplash, setShowSplash] = useState(true); // Show splash initially
 
   const { theme } = useSelector(state => state.ui);
 
@@ -132,7 +135,9 @@ function App() {
         }
       }
       
-      setIsRehydrating(false); // Done loading
+      setIsRehydrating(false); // Done loading logic
+      // Keep splash visible for a minimum duration for smooth UX
+      setTimeout(() => setShowSplash(false), 2000); 
     };
 
     rehydrate();
@@ -179,50 +184,56 @@ function App() {
    * While we're restoring authentication state, show nothing
    * to avoid flashing the wrong UI.
    */
-  if (isRehydrating) {
-    return null; // Could show a loading spinner here
-  }
+
 
   /**
    * RENDER THE APP
    */
   return (
     <>
-      {/* Main Layout: Navbar + Sidebars + Content */}
-      <AppLayout>
-        {/* Onboarding Guard: Ensures new users complete interests selection */}
-        <OnboardingGuard>
-          {/* Route Configuration: Maps URLs to components */}
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Feed />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            
-            {/* Onboarding Route */}
-            <Route path="/onboarding/interests" element={<InterestsPage />} />
-            
-            {/* Protected Routes: Require authentication */}
-            <Route path="/recommended" element={<ProtectedRoute><RecommendedPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-            <Route path="/bookmarks" element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
-            <Route path="/archived" element={<ProtectedRoute><ArchivedPostsPage /></ProtectedRoute>} />
-            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-            
-            {/* Catch-all: Redirect unknown routes to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </OnboardingGuard>
-      </AppLayout>
-      
-      {/* Toast Notifications: Shows success/error messages */}
-      <Toaster 
-        position="bottom-center"
-        toastOptions={{
-          className: 'font-bold rounded-2xl bg-card text-foreground border border-border/50 shadow-2xl backdrop-blur-xl',
-          duration: 4000, // Show for 4 seconds
-        }}
-      />
+      <AnimatePresence mode="wait">
+        {showSplash ? (
+           <SplashScreen key="splash" theme={theme} />
+        ) : (
+           <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+              {/* Main Layout: Navbar + Sidebars + Content */}
+              <AppLayout>
+                {/* Onboarding Guard: Ensures new users complete interests selection */}
+                <OnboardingGuard>
+                  {/* Route Configuration: Maps URLs to components */}
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Feed />} />
+                    <Route path="/search" element={<SearchPage />} />
+                    <Route path="/profile/:id" element={<ProfilePage />} />
+                    
+                    {/* Onboarding Route */}
+                    <Route path="/onboarding/interests" element={<InterestsPage />} />
+                    
+                    {/* Protected Routes: Require authentication */}
+                    <Route path="/recommended" element={<ProtectedRoute><RecommendedPage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                    <Route path="/bookmarks" element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
+                    <Route path="/archived" element={<ProtectedRoute><ArchivedPostsPage /></ProtectedRoute>} />
+                    <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+                    
+                    {/* Catch-all: Redirect unknown routes to home */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </OnboardingGuard>
+              </AppLayout>
+              
+              {/* Toast Notifications: Shows success/error messages */}
+              <Toaster 
+                position="bottom-center"
+                toastOptions={{
+                  className: 'font-bold rounded-2xl bg-card text-foreground border border-border/50 shadow-2xl backdrop-blur-xl',
+                  duration: 4000, // Show for 4 seconds
+                }}
+              />
+           </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

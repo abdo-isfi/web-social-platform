@@ -4,12 +4,13 @@ import { Bookmark, MessageSquare } from 'lucide-react';
 import { SocialCard } from '@/components/ui/social-card';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { fetchBookmarkedPosts, likePost, unlikePost, bookmarkPost, addComment, deletePost, archivePost } from '@/store/slices/postSlice';
+import { fetchBookmarkedPosts, likePost, unlikePost, bookmarkPost, addComment, deletePost, archivePost, clearPosts } from '@/store/slices/postSlice';
 import { followerService } from '@/services/follower.service';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { PostComments } from '@/components/feed/PostComments';
 import { DEFAULT_AVATAR } from '@/lib/constants';
+import { cn, formatRelativeTime } from '@/lib/utils';
 
 export function BookmarksPage() {
   const dispatch = useDispatch();
@@ -24,6 +25,7 @@ export function BookmarksPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
+      dispatch(clearPosts());
       dispatch(fetchBookmarkedPosts({ page: 1, limit: 20 }));
     }
   }, [dispatch, isAuthenticated]);

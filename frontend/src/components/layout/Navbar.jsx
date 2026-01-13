@@ -34,8 +34,12 @@ export function Navbar() {
   };
 
   const logoElement = (
-    <div className="relative w-8 h-8 flex items-center justify-center bg-black dark:bg-white rounded-full cursor-pointer">
-       <span className="text-white dark:text-black font-bold text-lg">S</span>
+    <div className="relative w-8 h-8 flex items-center justify-center cursor-pointer">
+       <img 
+         src={theme === 'dark' ? "/white_logo.png" : "/black_logo.png"} 
+         alt="Social" 
+         className="w-full h-full object-contain"
+       />
     </div>
   );
 
