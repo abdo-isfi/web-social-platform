@@ -663,9 +663,22 @@ const getRecommendedFeed = async (req, res) => {
     const { page, limit } = req.pagination;
     const skip = (page - 1) * limit;
 
-    // Get user's interests
-    const user = await User.findById(userId).select('interests');
-    if (!user || !user.interests || user.interests.length === 0) {
+    // Get user's interests or use filter query
+    const { tags } = req.query;
+    let interestTags = [];
+
+    if (tags) {
+       // If specific tags are requested, prioritize them
+       interestTags = tags.split(',').map(tag => tag.trim());
+    } else {
+       // Otherwise fall back to user's saved interests
+       const user = await User.findById(userId).select('interests');
+       if (user && user.interests && user.interests.length > 0) {
+           interestTags = user.interests;
+       }
+    }
+
+    if (interestTags.length === 0) {
       return responseHandler.success(res, {
         threads: [],
         pagination: { totalThreads: 0, totalPages: 0, currentPage: page, pageSize: limit },
@@ -673,11 +686,11 @@ const getRecommendedFeed = async (req, res) => {
       }, "No interests found", statusCodes.SUCCESS);
     }
 
-    // Filter: posts with hashtags matching user's interests
+    // Filter: posts with hashtags matching user's interests or selected tags
     const filter = {
       isArchived: false,
       parentThread: null,
-      hashtags: { $in: user.interests } // Match any hashtag that's in user's interests
+      hashtags: { $in: interestTags } 
     };
 
     // Exclude private users unless following

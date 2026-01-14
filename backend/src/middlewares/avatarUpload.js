@@ -10,7 +10,7 @@ const path = require("path");
 
 module.exports = multer({
   storage: multer.memoryStorage(), // Keeps file in RAM for quick processing
-  limits: { fileSize: 200 * 1024 }, // Max 200KB (don't need high-res for icons)
+  limits: { fileSize: 5 * 1024 * 1024 }, // Max 5MB (supports higher quality banners and photos)
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());

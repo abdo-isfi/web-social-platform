@@ -52,9 +52,7 @@ A social media web application where users can create threads, comment, like, fo
 - MongoDB >= 5.0
 - npm or yarn
 
-### Installation
+cd backend
+npm install 
+npm run dev
 
-```bash
-git clone https://github.com/yourusername/social-media-web-app.git
-cd social-media-web-app
-npm install

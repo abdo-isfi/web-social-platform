@@ -20,6 +20,7 @@ import { FollowListModal } from '@/components/modals/FollowListModal';
 import { PostComments } from '@/components/feed/PostComments';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { UserBanner } from '@/components/ui/UserBanner';
 import socketService from '@/services/socket';
 
 export function ProfilePage() {
@@ -430,23 +431,7 @@ export function ProfilePage() {
         <div className="relative flex flex-col items-center px-4">
           <div className="h-48 sm:h-52 md:h-60 w-full relative group overflow-hidden">
             <div className="w-full h-full relative rounded-t-[2.5rem] overflow-hidden border border-border/50 border-b-0">
-              {profile.banner ? (
-                <img 
-                  key={profile.banner}
-                  src={profile.banner} 
-                  alt="Banner" 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 bg-muted" 
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'block';
-                  }}
-                />
-              ) : null}
-              <div 
-                className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-background transition-colors" 
-                style={{ display: profile.banner ? 'none' : 'block' }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
+              <UserBanner user={profile} />
             </div>
           </div>
           

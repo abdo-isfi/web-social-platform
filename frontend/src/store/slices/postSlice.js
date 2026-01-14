@@ -11,8 +11,8 @@ export const fetchPosts = createAsyncThunk(
 
 export const fetchRecommendedPosts = createAsyncThunk(
   'posts/fetchRecommendedPosts',
-  async ({ page = 1, limit = 10 } = {}) => {
-    return await postService.getRecommendedFeed(page, limit);
+  async ({ page = 1, limit = 10, tags = null } = {}) => {
+    return await postService.getRecommendedFeed(page, limit, tags);
   }
 );
 

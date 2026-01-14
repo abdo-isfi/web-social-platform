@@ -77,5 +77,29 @@ app.use("/api/search", require("./routes/search.route")); // Search functionalit
 app.use("/",(req,res)=>{
   res.send("Welcome to the Social Media API")
 })
+// 7. Global Error Handler
+// Catches errors like Multer "File too large" and returns clean JSON instead of crashing or sending 500
+app.use((err, req, res, next) => {
+  const multer = require('multer');
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 5MB.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message
+    });
+  }
+  
+  console.error('Unhandled Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error'
+  });
+});
+
 // Export the app to be used in server.js
 module.exports = app;

@@ -146,38 +146,50 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
     setShowBannerMenu(false);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSave = async () => {
-    // Determine if we need FormData (files present)
-    const isFormData = !!newAvatarFile || !!newBannerFile;
-    let dataToSubmit;
+    setIsSaving(true);
+    try {
+        // Determine if we need FormData (files present)
+        const isFormData = !!newAvatarFile || !!newBannerFile;
+        let dataToSubmit;
 
-    if (isFormData) {
-        dataToSubmit = new FormData();
-        // Append text fields
-        Object.keys(formData).forEach(key => {
-            if (key !== 'avatar' && key !== 'banner') {
-                dataToSubmit.append(key, formData[key]);
-            }
-        });
-        // Append files
-        if (newAvatarFile) {
-            dataToSubmit.append('avatar', newAvatarFile);
+        if (isFormData) {
+            dataToSubmit = new FormData();
+            // Append all fields
+            Object.keys(formData).forEach(key => {
+                if (key === 'avatar') {
+                    if (newAvatarFile) {
+                        dataToSubmit.append('avatar', newAvatarFile);
+                    } else if (formData.avatar === DEFAULT_AVATAR && user.avatar) {
+                        // User explicitly deleted avatar
+                        dataToSubmit.append('avatar', DEFAULT_AVATAR);
+                    }
+                } else if (key === 'banner') {
+                    if (newBannerFile) {
+                        dataToSubmit.append('banner', newBannerFile);
+                    } else if (formData.banner === DEFAULT_BANNER && user.banner) {
+                        // User explicitly deleted banner
+                        dataToSubmit.append('banner', DEFAULT_BANNER);
+                    }
+                } else {
+                    dataToSubmit.append(key, formData[key]);
+                }
+            });
+        } else {
+            dataToSubmit = { ...formData };
         }
-        if (newBannerFile) {
-            dataToSubmit.append('banner', newBannerFile);
-        }
-    } else {
-        // Send JSON minus the base64 previews if they are just previews (or send them if they are text links)
-        // Actually, existing avatar/banner are URLs. We can send them.
-        dataToSubmit = { ...formData };
-        // Clean up base64 if we are not sending file? No, if we didn't change file, avatar is URL.
-        // If we changed file, we have newAvatarFile.
+
+        const { updateUserProfile } = await import('@/store/slices/authSlice');
+        await dispatch(updateUserProfile(user.id, dataToSubmit, isFormData));
+        if (onSuccess) onSuccess();
+        onClose();
+    } catch (error) {
+        console.error("Save failed", error);
+    } finally {
+        setIsSaving(false);
     }
-
-    const { updateUserProfile } = await import('@/store/slices/authSlice');
-    await dispatch(updateUserProfile(user.id, dataToSubmit, isFormData));
-    if (onSuccess) onSuccess();
-    onClose();
   };
 
   return (
@@ -463,8 +475,10 @@ export function EditProfileModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         <div className="p-6 pt-0 flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} className="rounded-full">Cancel</Button>
-          <Button onClick={handleSave} className="rounded-full">Save</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-full" disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} className="rounded-full px-8" disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

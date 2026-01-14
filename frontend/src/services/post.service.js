@@ -46,8 +46,12 @@ export const postService = {
   },
 
   // Get recommended feed based on user interests
-  getRecommendedFeed: async (page = 1, limit = 20) => {
-    return await api.get(`/thread/recommended?page=${page}&limit=${limit}`);
+  getRecommendedFeed: async (page = 1, limit = 20, tags = null) => {
+    let url = `/thread/recommended?page=${page}&limit=${limit}`;
+    if (tags) {
+        url += `&tags=${encodeURIComponent(tags)}`;
+    }
+    return await api.get(url);
   },
 
   // Get post comments

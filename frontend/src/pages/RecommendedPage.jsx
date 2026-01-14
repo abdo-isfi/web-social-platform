@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { SocialCard } from '@/components/ui/social-card';
-import { CreatePost } from '@/components/feed/CreatePost';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { fetchRecommendedPosts, createPost, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost, clearPosts } from '@/store/slices/postSlice';
+import { fetchRecommendedPosts, likePost, unlikePost, addComment, bookmarkPost, deletePost, archivePost, clearPosts } from '@/store/slices/postSlice';
 import { followerService } from '@/services/follower.service';
-import { postService } from '@/services/post.service';
-import { Sparkles, MessageSquare } from 'lucide-react';
+import { Sparkles, MessageSquare, Filter, RefreshCcw } from 'lucide-react';
 import { CommentDialog } from '@/components/feed/CommentDialog';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { DEFAULT_AVATAR } from '@/lib/constants';
 import { PostComments } from '@/components/feed/PostComments';
 import { EditPostModal } from '@/components/modals/EditPostModal';
 import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
+import { INTEREST_OPTIONS } from '@/constants/interests';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 export function RecommendedPage() {
   const dispatch = useDispatch();
@@ -26,21 +27,25 @@ export function RecommendedPage() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
   const [deletingPostId, setDeletingPostId] = useState(null);
-  const [justDeletedCommentId, setJustDeletedCommentId] = useState(null);
   const [replying, setReplying] = useState(false);
+  const [selectedInterest, setSelectedInterest] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  // Fetch recommended posts on mount and when auth status changes
+  // Fetch recommended posts on mount and when filter changes
   useEffect(() => {
     dispatch(clearPosts());
     if (isAuthenticated) {
-      dispatch(fetchRecommendedPosts({ page: 1, limit: 20 }));
+      dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, selectedInterest]);
 
-  const handleNewPost = (data) => {
-    return requireAuth(() => {
-      return dispatch(createPost(data));
-    }, 'login');
+  const handleResetFilter = () => {
+    setSelectedInterest(null);
+  };
+
+  const handleInterestSelect = (interestId) => {
+    setSelectedInterest(interestId);
+    setFilterOpen(false);
   };
 
   const handleLike = (postId, isLiked) => {
@@ -77,10 +82,10 @@ export function RecommendedPage() {
          dispatch(archivePost(id));
       } else if (action === 'follow') {
          await followerService.followUser(payload);
-         dispatch(fetchRecommendedPosts({ page: 1, limit: 20 }));
+         dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
       } else if (action === 'unfollow') {
          await followerService.unfollowUser(payload);
-         dispatch(fetchRecommendedPosts({ page: 1, limit: 20 }));
+         dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
       }
     }, 'login');
   };
@@ -114,7 +119,7 @@ export function RecommendedPage() {
   };
 
   const handleLoadMore = () => {
-    dispatch(fetchRecommendedPosts({ page: currentPage + 1, limit: 20 }));
+    dispatch(fetchRecommendedPosts({ page: currentPage + 1, limit: 20, tags: selectedInterest }));
   };
 
   if (!isAuthenticated || !user?.interests || user.interests.length === 0) {
@@ -129,13 +134,102 @@ export function RecommendedPage() {
     );
   }
 
+  const activeInterestOption = selectedInterest 
+    ? INTEREST_OPTIONS.find(i => i.id === selectedInterest)
+    : null;
+
+  const activeInterestLabel = activeInterestOption ? activeInterestOption.label : "For You";
+  const activeInterestIcon = activeInterestOption ? activeInterestOption.icon : "✨";
+
   return (
-    <div className="space-y-0 mt-0">
-      <div className="flex flex-col gap-[2px]">
-        <div className="px-0 py-6">
-          <CreatePost onPost={handleNewPost} />
+    <div className="space-y-4 pt-4">
+      
+      {/* Header & Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sticky top-0 z-30 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="flex items-center gap-3">
+           <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner group transition-all duration-300 hover:scale-110">
+              {activeInterestIcon}
+           </div>
+           <div>
+               <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
+                 {activeInterestLabel}
+                 {selectedInterest && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+               </h1>
+               <p className="text-[13px] font-medium text-muted-foreground/70">
+                   {selectedInterest ? `Browsing ${activeInterestLabel} topics` : 'Personalized based on your interests'}
+               </p>
+           </div>
         </div>
 
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+             <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                <PopoverTrigger asChild>
+                   <Button 
+                     variant="outline" 
+                     className={cn(
+                       "rounded-2xl gap-2 h-11 px-5 border-border/50 transition-all duration-300 flex-1 sm:flex-initial",
+                       selectedInterest ? "bg-primary/5 border-primary/30 text-primary" : "hover:bg-muted"
+                     )}
+                   >
+                       <Filter className={cn("w-4 h-4", selectedInterest ? "text-primary" : "text-muted-foreground")} />
+                       <span className="font-bold text-sm">Filter Topics</span>
+                   </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="p-4 w-[95vw] sm:w-[540px] md:w-[640px] rounded-[2rem] shadow-2xl border-border/40 backdrop-blur-3xl bg-card/95 animate-in fade-in-0 zoom-in-95 duration-300" 
+                  align="end"
+                  sideOffset={8}
+                >
+                    <div className="mb-4 px-2 flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-widest text-muted-foreground/60">Explore Interests</span>
+                      {selectedInterest && (
+                        <button 
+                          onClick={handleResetFilter}
+                          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                        >
+                          <RefreshCcw className="w-3 h-3" /> Reset
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[70vh] overflow-y-auto no-scrollbar pr-1">
+                        {INTEREST_OPTIONS.map(option => (
+                            <button
+                                key={option.id}
+                                onClick={() => handleInterestSelect(option.id)}
+                                className={cn(
+                                    "flex flex-col items-center justify-center p-3.5 rounded-2xl border transition-all duration-300 gap-1.5 group relative overflow-hidden",
+                                    selectedInterest === option.id 
+                                      ? "bg-primary/10 border-primary/50 text-primary ring-1 ring-primary/20 shadow-md transform scale-[0.98]" 
+                                      : "bg-muted/30 border-transparent hover:bg-muted hover:border-border/50 text-muted-foreground hover:text-foreground hover:scale-[1.02]"
+                                )}
+                            >
+                                <span className="text-2xl group-hover:scale-110 transition-transform duration-300">{option.icon}</span>
+                                <span className="text-[11px] font-black tracking-tight text-center leading-tight">{option.label}</span>
+                                {selectedInterest === option.id && (
+                                  <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </PopoverContent>
+             </Popover>
+             
+             {selectedInterest && (
+                 <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleResetFilter}
+                    className="rounded-xl w-11 h-11 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
+                    title="Reset to For You"
+                 >
+                     <RefreshCcw className="w-4 h-4" />
+                 </Button>
+             )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+      
         {loading && posts.length === 0 ? (
           <>
             <PostSkeleton />
@@ -150,9 +244,14 @@ export function RecommendedPage() {
           />
         ) : posts.length === 0 ? (
           <EmptyState
-            icon={<Sparkles className="w-16 h-16" />}
-            title="No Recommended Posts Yet"
-            description="We couldn't find posts matching your interests. Try following more users or check back later!"
+            icon={selectedInterest ? <Filter className="w-16 h-16 opacity-20" /> : <Sparkles className="w-16 h-16 opacity-20" />}
+            title={selectedInterest ? `No ${activeInterestLabel} posts yet` : "No Recommended Posts Yet"}
+            description={selectedInterest ? "We couldn't find any recent posts for this topic. Be the first to post something!" : "We couldn't find posts matching your interests. Try following more users or check back later!"}
+            action={selectedInterest ? (
+                <Button onClick={handleResetFilter} variant="outline" className="mt-4 rounded-full border-primary/30 text-primary hover:bg-primary/5">
+                    View Personalized Feed
+                </Button>
+            ) : null}
           />
         ) : (
           <>
@@ -204,13 +303,14 @@ export function RecommendedPage() {
             {loading && <PostSkeleton />}
             
             {hasMore && !loading && (
-              <div className="flex justify-center py-8">
-                <button
+              <div className="flex justify-center py-12">
+                <Button
                   onClick={handleLoadMore}
-                  className="px-6 py-2 bg-primary text-primary-foreground rounded-full font-semibold hover:bg-primary/90 transition-colors"
+                  variant="outline"
+                  className="px-10 py-6 rounded-full font-black text-sm uppercase tracking-widest border-primary/20 hover:bg-primary/5 hover:border-primary/50 transition-all active:scale-95 shadow-lg shadow-primary/5"
                 >
-                  Load More
-                </button>
+                  Load More Content
+                </Button>
               </div>
             )}
           </>
@@ -231,7 +331,7 @@ export function RecommendedPage() {
         onClose={() => setEditingPost(null)}
         post={editingPost}
         onSuccess={() => {
-            dispatch(fetchRecommendedPosts({ page: 1, limit: 20 }));
+            dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
         }}
       />
 
