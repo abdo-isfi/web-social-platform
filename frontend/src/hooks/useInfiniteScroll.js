@@ -28,7 +28,7 @@ export const useInfiniteScroll = (callback, hasMore, isLoading) => {
         callbackRef.current();
       }
     }, options);
-
+ 
     const currentTarget = observerRef.current;
     if (currentTarget) {
       observer.observe(currentTarget);
