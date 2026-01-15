@@ -44,6 +44,7 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState('posts');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [fetchingMore, setFetchingMore] = useState(false);
   
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
@@ -200,7 +201,7 @@ export function ProfilePage() {
       setLoading(false);
       setError('Please log in to view your profile');
     }
-  }, [id, currentUser, isAuthenticated, fetchProfileData]);
+  }, [id, currentUser, isAuthenticated, fetchProfileAndPosts]);
 
   useEffect(() => {
       if (activeTab === 'likes' && likedPosts.length === 0 && profile && !profile.isPrivateView) {
@@ -395,7 +396,7 @@ export function ProfilePage() {
             } else {
                 await followerService.unfollowUser(authorId);
             }
-            fetchProfileData();
+            fetchProfileAndPosts();
         } else if (action === 'commented') {
             // authorId here might be the comment object passed from onReply if it has a thread property
             if (typeof authorId === 'object' && authorId.thread) {
@@ -692,7 +693,7 @@ export function ProfilePage() {
       <EditProfileModal 
         isOpen={isEditModalOpen} 
         onClose={() => setIsEditModalOpen(false)} 
-        onSuccess={fetchProfileData}
+        onSuccess={fetchProfileAndPosts}
       />
       
       <EditPostModal
