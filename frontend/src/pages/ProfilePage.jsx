@@ -23,7 +23,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UserBanner } from '@/components/ui/UserBanner';
 import socketService from '@/services/socket';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
-
+// Profile Page Component
 export function ProfilePage() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
