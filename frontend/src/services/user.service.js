@@ -16,8 +16,8 @@ export const userService = {
   },
 
   // Get user posts
-  getUserPosts: async (userId) => {
-    return await api.get(`/user/${userId}/posts`);
+  getUserPosts: async (userId, page = 1, limit = 5) => {
+    return await api.get(`/user/${userId}/posts?page=${page}&limit=${limit}`);
   },
 
   // Get suggestions

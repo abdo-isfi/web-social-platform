@@ -16,6 +16,7 @@ import { DEFAULT_AVATAR } from '@/lib/constants';
 import { PostComments } from '@/components/feed/PostComments';
 import { EditPostModal } from '@/components/modals/EditPostModal';
 import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 
 
 
@@ -23,7 +24,7 @@ export default function Feed() {
   const dispatch = useDispatch();
   const requireAuth = useAuthGuard();
   const { feedMode } = useSelector(state => state.ui);
-  const { posts, loading, error } = useSelector(state => state.posts);
+  const { posts, loading, error, hasMore, currentPage } = useSelector(state => state.posts);
   
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
@@ -37,12 +38,24 @@ export default function Feed() {
 
   const { isAuthenticated } = useSelector(state => state.auth);
   
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      dispatch(fetchPosts({ 
+        page: currentPage + 1, 
+        limit: 5, 
+        mode: feedMode === 'public' ? 'discover' : 'following' 
+      }));
+    }
+  };
+
+  const { observerRef } = useInfiniteScroll(loadMore, hasMore, loading);
+  
   // Fetch posts on mount and when feedMode or auth status changes
   useEffect(() => {
     dispatch(clearPosts()); // Clear old posts instantly to avoid flickering/phantom feed
     dispatch(fetchPosts({ 
       page: 1, 
-      limit: 20, 
+      limit: 5, 
       mode: feedMode === 'public' ? 'discover' : 'following' 
     }));
   }, [dispatch, feedMode, isAuthenticated]);
@@ -92,10 +105,10 @@ export default function Feed() {
          dispatch(archivePost(id));
       } else if (action === 'follow') {
          await followerService.followUser(payload);
-         dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
+         dispatch(fetchPosts({ page: 1, limit: 5, mode: feedMode === 'public' ? 'discover' : 'following' }));
       } else if (action === 'unfollow') {
          await followerService.unfollowUser(payload);
-         dispatch(fetchPosts({ page: 1, limit: 10, mode: feedMode === 'public' ? 'discover' : 'following' }));
+         dispatch(fetchPosts({ page: 1, limit: 5, mode: feedMode === 'public' ? 'discover' : 'following' }));
       } else if (action === 'edit_comment') {
           setEditingComment(payload);
       } else if (action === 'delete_comment') {
@@ -246,7 +259,12 @@ export default function Feed() {
                 </SocialCard>
               );
             })}
-            {loading && <PostSkeleton />}
+            {/* Sentinel and Loading Indicator */}
+            <div ref={observerRef} className="h-20 w-full flex items-center justify-center">
+               {hasMore && (
+                  <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+               )}
+            </div>
           </>
         )}
       </div>
@@ -294,7 +312,7 @@ export default function Feed() {
             // But modal handles service call.
             // Let's just refresh feed for simplicity or maybe dispatch an action if available.
             // Actually, we can dispatch fetchPosts to refresh.
-            dispatch(fetchPosts({ page: 1, limit: 20, mode: feedMode === 'public' ? 'discover' : 'following' }));
+            dispatch(fetchPosts({ page: 1, limit: 5, mode: feedMode === 'public' ? 'discover' : 'following' }));
         }}
       />
 

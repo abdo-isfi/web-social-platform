@@ -2,7 +2,7 @@ import api from './api';
 
 export const postService = {
   // Get all posts (feed) - Uses /thread which supports auth for personalized feed
-  getPosts: async (page = 1, limit = 10, mode = 'discover') => {
+  getPosts: async (page = 1, limit = 5, mode = 'discover') => {
     return await api.get(`/thread?page=${page}&limit=${limit}&mode=${mode}`);
   },
 
@@ -41,12 +41,12 @@ export const postService = {
   },
 
   // Get user's liked threads
-  getLikedThreads: async (page = 1, limit = 10) => {
+  getLikedThreads: async (page = 1, limit = 5) => {
     return await api.get(`/like/likedthread?page=${page}&limit=${limit}`);
   },
 
   // Get recommended feed based on user interests
-  getRecommendedFeed: async (page = 1, limit = 20, tags = null) => {
+  getRecommendedFeed: async (page = 1, limit = 5, tags = null) => {
     let url = `/thread/recommended?page=${page}&limit=${limit}`;
     if (tags) {
         url += `&tags=${encodeURIComponent(tags)}`;
@@ -70,12 +70,12 @@ export const postService = {
   },
 
   // Get bookmarked posts
-  getBookmarkedPosts: async (page = 1, limit = 10) => {
+  getBookmarkedPosts: async (page = 1, limit = 5) => {
     return await api.get(`/thread/user/bookmarks?page=${page}&limit=${limit}`);
   },
 
   // Get archived posts
-  getArchivedPosts: async (page = 1, limit = 10) => {
+  getArchivedPosts: async (page = 1, limit = 5) => {
     return await api.get(`/thread/archived?page=${page}&limit=${limit}`);
   },
 

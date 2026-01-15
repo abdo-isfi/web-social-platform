@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { fetchSuggestions, followUser, unfollowUser } from '@/store/slices/userSlice';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { performSearch, clearSearch } from '@/store/slices/searchSlice';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 
 export function RightSidebar() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const requireAuth = useAuthGuard();
   const { suggestions, loading } = useSelector(state => state.user);
   const { isAuthenticated } = useSelector(state => state.auth);
@@ -196,7 +197,14 @@ export function RightSidebar() {
         <h3 className="font-bold text-lg mb-5 text-foreground">Trending</h3>
         <div className="flex flex-col gap-2">
           {trends.map(trend => (
-            <div key={trend.id} className="cursor-pointer hover:bg-muted/50 p-3 -mx-2 rounded-2xl transition-all duration-200 group">
+            <div 
+              key={trend.id} 
+              onClick={() => {
+                const normalizedTopic = trend.topic.replace('#', '').toLowerCase();
+                navigate(`/recommended?topic=${normalizedTopic}`);
+              }}
+              className="cursor-pointer hover:bg-muted/50 p-3 -mx-2 rounded-2xl transition-all duration-200 group"
+            >
               <p className="text-xs text-muted-foreground font-medium mb-1">Trending in {trend.topic}</p>
               <p className="font-bold text-foreground group-hover:text-primary transition-colors">{trend.topic}</p>
               <p className="text-xs text-muted-foreground mt-1">{trend.posts}</p>

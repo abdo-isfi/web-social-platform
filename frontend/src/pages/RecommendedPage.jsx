@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { SocialCard } from '@/components/ui/social-card';
 import { PostSkeleton } from '@/components/ui/PostSkeleton';
@@ -16,6 +17,7 @@ import { DeleteAlertModal } from '@/components/modals/DeleteAlertModal';
 import { INTEREST_OPTIONS } from '@/constants/interests';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 
 export function RecommendedPage() {
   const dispatch = useDispatch();
@@ -30,12 +32,29 @@ export function RecommendedPage() {
   const [replying, setReplying] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Pick up topic from URL if present (e.g., /recommended?topic=tech)
+  useEffect(() => {
+    const topic = searchParams.get('topic');
+    if (topic && topic !== selectedInterest) {
+      setSelectedInterest(topic);
+    }
+  }, [searchParams]);
+
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      dispatch(fetchRecommendedPosts({ page: currentPage + 1, limit: 5, tags: selectedInterest }));
+    }
+  };
+
+  const { observerRef } = useInfiniteScroll(loadMore, hasMore, loading);
 
   // Fetch recommended posts on mount and when filter changes
   useEffect(() => {
     dispatch(clearPosts());
     if (isAuthenticated) {
-      dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
+      dispatch(fetchRecommendedPosts({ page: 1, limit: 5, tags: selectedInterest }));
     }
   }, [dispatch, isAuthenticated, selectedInterest]);
 
@@ -82,10 +101,10 @@ export function RecommendedPage() {
          dispatch(archivePost(id));
       } else if (action === 'follow') {
          await followerService.followUser(payload);
-         dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
+         dispatch(fetchRecommendedPosts({ page: 1, limit: 5, tags: selectedInterest }));
       } else if (action === 'unfollow') {
          await followerService.unfollowUser(payload);
-         dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
+         dispatch(fetchRecommendedPosts({ page: 1, limit: 5, tags: selectedInterest }));
       }
     }, 'login');
   };
@@ -119,7 +138,7 @@ export function RecommendedPage() {
   };
 
   const handleLoadMore = () => {
-    dispatch(fetchRecommendedPosts({ page: currentPage + 1, limit: 20, tags: selectedInterest }));
+    loadMore();
   };
 
   if (!isAuthenticated || !user?.interests || user.interests.length === 0) {
@@ -300,19 +319,12 @@ export function RecommendedPage() {
                 </SocialCard>
               );
             })}
-            {loading && <PostSkeleton />}
-            
-            {hasMore && !loading && (
-              <div className="flex justify-center py-12">
-                <Button
-                  onClick={handleLoadMore}
-                  variant="outline"
-                  className="px-10 py-6 rounded-full font-black text-sm uppercase tracking-widest border-primary/20 hover:bg-primary/5 hover:border-primary/50 transition-all active:scale-95 shadow-lg shadow-primary/5"
-                >
-                  Load More Content
-                </Button>
-              </div>
-            )}
+            {/* Sentinel and Loading Indicator */}
+            <div ref={observerRef} className="h-20 w-full flex items-center justify-center">
+               {hasMore && (
+                  <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+               )}
+            </div>
           </>
         )}
       </div>
@@ -331,7 +343,7 @@ export function RecommendedPage() {
         onClose={() => setEditingPost(null)}
         post={editingPost}
         onSuccess={() => {
-            dispatch(fetchRecommendedPosts({ page: 1, limit: 20, tags: selectedInterest }));
+            dispatch(fetchRecommendedPosts({ page: 1, limit: 5, tags: selectedInterest }));
         }}
       />
 

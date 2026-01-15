@@ -22,6 +22,7 @@ import { CommentDialog } from '@/components/feed/CommentDialog';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { UserBanner } from '@/components/ui/UserBanner';
 import socketService from '@/services/socket';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
@@ -41,6 +42,8 @@ export function ProfilePage() {
   const [loadingArchived, setLoadingArchived] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('posts');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   
   const [recentComments, setRecentComments] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
@@ -124,7 +127,7 @@ export function ProfilePage() {
     }
   };
 
-  const fetchProfileData = React.useCallback(async () => {
+  const fetchProfileAndPosts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -139,8 +142,16 @@ export function ProfilePage() {
       const profileData = await userService.getProfile(userId);
       setProfile(profileData);
 
-      const userPosts = await userService.getUserPosts(userId);
-      setPosts(userPosts || []);
+      const response = await userService.getUserPosts(userId, 1, 5);
+      const userPosts = response.threads || response || [];
+      setPosts(userPosts);
+      
+      if (response.pagination) {
+          setHasMore(response.pagination.currentPage < response.pagination.totalPages);
+          setPage(1);
+      } else {
+          setHasMore(false);
+      }
       
       if (activeTab === 'likes' && (isOwnProfile || !profileData.isPrivate)) {
           fetchLikedPosts();
@@ -151,11 +162,40 @@ export function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [id, currentUser, isOwnProfile]);
+  }, [id, currentUser, isOwnProfile, activeTab]);
+
+  const loadMore = async () => {
+    if (!hasMore || loading || fetchingMore || activeTab !== 'posts') return;
+    try {
+      setFetchingMore(true);
+      const userId = id === 'me' ? (currentUser?._id || currentUser?.id) : id;
+      const response = await userService.getUserPosts(userId, page + 1, 5);
+      const newPosts = response.threads || [];
+      
+      setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p._id));
+          const uniqueNew = newPosts.filter(p => !existingIds.has(p._id));
+          return [...prev, ...uniqueNew];
+      });
+      
+      if (response.pagination) {
+          setPage(response.pagination.currentPage);
+          setHasMore(response.pagination.currentPage < response.pagination.totalPages);
+      } else {
+          setHasMore(false);
+      }
+    } catch (err) {
+      console.error("Failed to load more posts", err);
+    } finally {
+      setFetchingMore(false);
+    }
+  };
+
+  const { observerRef } = useInfiniteScroll(loadMore, hasMore, loading || fetchingMore);
 
   useEffect(() => {
     if (isAuthenticated || id !== 'me') {
-      fetchProfileData();
+      fetchProfileAndPosts();
     } else {
       setLoading(false);
       setError('Please log in to view your profile');
@@ -637,6 +677,14 @@ export function ProfilePage() {
                 </div>
               );
             })
+          )}
+          
+          {activeTab === 'posts' && (
+            <div ref={observerRef} className="h-20 w-full flex items-center justify-center">
+               {hasMore && (
+                  <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+               )}
+            </div>
           )}
         </div>
       </div>

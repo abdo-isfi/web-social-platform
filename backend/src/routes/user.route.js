@@ -4,6 +4,7 @@ const authenticate  = require("../middlewares/auth");
 const userController=require("../controllers/user.controller");
 const {updateProfile, getUserById}=userController;
 const upload = require("../middlewares/avatarUpload"); 
+const pagination = require("../middlewares/pagination");
 router.patch(
   '/me',
   authenticate,
@@ -21,6 +22,6 @@ router.put('/privacy', authenticate, userController.updatePrivacy);
 router.patch('/change-password', authenticate, userController.changePassword);
 router.post('/interests', authenticate, userController.saveInterests);
 router.get('/:userId', optionalAuth, getUserById);
-router.get('/:userId/posts', optionalAuth, userController.getUserPosts);
+router.get('/:userId/posts', optionalAuth, pagination, userController.getUserPosts);
 
 module.exports = router;

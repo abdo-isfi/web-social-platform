@@ -4,14 +4,14 @@ import { postService } from '@/services/post.service';
 // Async thunks
 export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
-  async ({ page = 1, limit = 10, mode = 'discover' } = {}) => {
+  async ({ page = 1, limit = 5, mode = 'discover' } = {}) => {
     return await postService.getPosts(page, limit, mode);
   }
 );
 
 export const fetchRecommendedPosts = createAsyncThunk(
   'posts/fetchRecommendedPosts',
-  async ({ page = 1, limit = 10, tags = null } = {}) => {
+  async ({ page = 1, limit = 5, tags = null } = {}) => {
     return await postService.getRecommendedFeed(page, limit, tags);
   }
 );
@@ -79,7 +79,7 @@ export const bookmarkPost = createAsyncThunk(
 
 export const fetchBookmarkedPosts = createAsyncThunk(
   'posts/fetchBookmarkedPosts',
-  async ({ page = 1, limit = 10 } = {}) => {
+  async ({ page = 1, limit = 5 } = {}) => {
     return await postService.getBookmarkedPosts(page, limit);
   }
 );
@@ -126,30 +126,20 @@ const postSlice = createSlice({
       })
       .addCase(fetchPosts.fulfilled, (state, action) => {
         state.loading = false;
-        // Backend returns { threads: [...], pagination: {...} }
-        const data = action.payload; // Typically api returns { data: { threads: ..., pagination: ... } } but handled in service?
-        // Wait, fetchPosts calls postService.getPosts.
-        // postService.getPosts calls api.get.
-        // api.get usually returns axios response.
-        // If fetchPosts returns await postService.getPosts(...), it returns the whole response object?
-        // Let's check fetchPosts service call again. It just returns await api.get().
-        // Usually axios response has .data. 
-        // My previous view of postSlice shows: state.posts = data.threads || [];
-        // This implies action.payload IS the data object (not the axios response).
-        // Does axios interceptor unwrap it? Or does createAsyncThunk unwrap it?
-        // Standard createAsyncThunk does NOT unwrap axios response.
-        // But if postService returns response.data, that would explain it.
-        // Looking at postService, it returns api.get(...).
-        // Let's just assume the existing fetchPosts logic is correct about structure.
-        // I will focus on addComment matching that style if needed, or just standard.
-        // Existing addComment returned `postId` directly.
-        // Using response.data.data is common for my backend "responseHandler.success".
+        const data = action.payload;
+        const isInitial = action.meta.arg?.page === 1 || !action.meta.arg?.page;
         
-        // RE-VERIFY fetchPosts reducer usage:
-        // state.posts = data.threads || [];
-        // This suggests data has a threads property.
+        const newThreads = data.threads || [];
         
-        state.posts = data.threads || [];
+        if (isInitial) {
+          state.posts = newThreads;
+        } else {
+          // Append and filter duplicates
+          const existingIds = new Set(state.posts.map(p => p._id));
+          const uniqueNewThreads = newThreads.filter(p => !existingIds.has(p._id));
+          state.posts = [...state.posts, ...uniqueNewThreads];
+        }
+        
         state.hasMore = data.pagination ? data.pagination.currentPage < data.pagination.totalPages : false;
         state.currentPage = data.pagination?.currentPage || 1;
       })
@@ -232,7 +222,17 @@ const postSlice = createSlice({
       .addCase(fetchBookmarkedPosts.fulfilled, (state, action) => {
         state.loading = false;
         const data = action.payload;
-        state.posts = data.threads || [];
+        const isInitial = action.meta.arg?.page === 1 || !action.meta.arg?.page;
+        const newThreads = data.threads || [];
+
+        if (isInitial) {
+          state.posts = newThreads;
+        } else {
+          const existingIds = new Set(state.posts.map(p => p._id));
+          const uniqueNewThreads = newThreads.filter(p => !existingIds.has(p._id));
+          state.posts = [...state.posts, ...uniqueNewThreads];
+        }
+
         state.hasMore = data.pagination ? data.pagination.currentPage < data.pagination.totalPages : false;
         state.currentPage = data.pagination?.currentPage || 1;
       })
@@ -248,7 +248,17 @@ const postSlice = createSlice({
       .addCase(fetchRecommendedPosts.fulfilled, (state, action) => {
         state.loading = false;
         const data = action.payload;
-        state.posts = data.threads || [];
+        const isInitial = action.meta.arg?.page === 1 || !action.meta.arg?.page;
+        const newThreads = data.threads || [];
+
+        if (isInitial) {
+          state.posts = newThreads;
+        } else {
+          const existingIds = new Set(state.posts.map(p => p._id));
+          const uniqueNewThreads = newThreads.filter(p => !existingIds.has(p._id));
+          state.posts = [...state.posts, ...uniqueNewThreads];
+        }
+
         state.hasMore = data.pagination ? data.pagination.currentPage < data.pagination.totalPages : false;
         state.currentPage = data.pagination?.currentPage || 1;
       })

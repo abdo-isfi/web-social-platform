@@ -300,6 +300,8 @@ const getUserPosts = async (req, res) => {
   try {
     const userId = req.params.userId;
     const currentUserId = req.user?.id;
+    const { page, limit } = req.pagination || { page: 1, limit: 10 };
+    const skip = (page - 1) * limit;
     
     // Check privacy
     const targetUser = await User.findById(userId);
@@ -315,13 +317,19 @@ const getUserPosts = async (req, res) => {
     const isAuthorized = currentUserId && (currentUserId === userId || isFollowing);
 
     if (targetUser.isPrivate && !isAuthorized) {
-        return responseHandler.success(res, [], 'Profile is private', statusCodes.SUCCESS);
+        return responseHandler.success(res, {
+            threads: [],
+            pagination: { totalThreads: 0, totalPages: 0, currentPage: page, pageSize: limit }
+        }, 'Profile is private', statusCodes.SUCCESS);
     }
 
     const Thread = require('../models/thread.model');
     
+    const totalThreads = await Thread.countDocuments({ author: userId, isArchived: false });
     const posts = await Thread.find({ author: userId, isArchived: false })
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate('author', '_id firstName lastName avatar avatarType')
       .populate('parentThread', 'content author')
       .populate({
@@ -335,9 +343,14 @@ const getUserPosts = async (req, res) => {
         posts.map(post => formatThreadResponse(post, currentUserId))
     );
 
+    const totalPages = Math.ceil(totalThreads / limit);
+
     return responseHandler.success(
       res,
-      formattedPosts,
+      {
+        threads: formattedPosts,
+        pagination: { totalThreads, totalPages, currentPage: page, pageSize: limit }
+      },
       'User posts fetched successfully',
       statusCodes.SUCCESS
     );
