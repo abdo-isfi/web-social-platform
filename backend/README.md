@@ -1,58 +1,50 @@
-# Social Media Web Platform
+# ⚙️ Social Media Backend
 
-A social media web application where users can create threads, comment, like, follow others, and receive real-time notifications. Built with **Node.js**, **Express**, **MongoDB**, and **React**.
-
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [API Endpoints](#api-endpoints)
-- [Real-Time Notifications](#real-time-notifications)
-- [Project Structure](#project-structure)
-- [Future Improvements](#future-improvements)
+The powerful engine driving the platform, built with **Node.js**, **Express**, and **MongoDB**.
 
 ---
 
-## Features
+## 🚀 Overview
 
-- User authentication and registration
-- Public/private user accounts
-- Create, update, and archive threads
-- Commenting system (comments are threads)
-- Like system for threads
-- Follow requests with pending/accepted/rejected status
-- Notifications for follows, likes, comments, and new threads
-- Real-time notifications using Socket.IO
-- Pagination for threads and notifications
-- Media handling (images stored as binary, videos via URL)
+A robust RESTful API and WebSocket server handling authentication, social interactions, notifications, and real-time communication.
+
+### ✨ Highlights
+- **Real-Time Engine:** Built with Socket.IO for instant social feedback.
+- **Security First:** Includes JWT auth, rate limiting, and sanitization middlewares.
+- **Scalable Data:** MongoDB integration with Mongoose for efficient social graph management.
+- **Media Handling:** Structured support for binary image storage and external media URLs.
 
 ---
 
-## Tech Stack
+## 📂 Structure
 
-- **Backend:** Node.js, Express.js, Mongoose (MongoDB)
-- **Frontend:** React, Tailwind CSS
-- **Real-Time:** Socket.IO
-- **Authentication:** JWT & Middleware
-- **Validation:** Joi
-- **Security:** Helmet, CORS, xss-clean, express-mongo-sanitize, rate limiting
-- **Logging:** Morgan
+```text
+src/
+├── 📁 controllers   # Request handlers & logic
+├── 📁 middleware    # Auth, validation, and security layers
+├── 📁 models        # Mongoose schemas & data definitions
+├── 📁 routes        # API endpoint definitions
+└── 📁 services      # Reusable business logic (Email, S3, etc.)
+```
 
 ---
 
-## Getting Started
+## 🛠️ Setup
 
-### Prerequisites
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure environment:
+   Create a `.env` file based on `.env.example`.
+3. Start development server:
+   ```bash
+   npm run dev
+   ```
 
-- Node.js >= 18
-- MongoDB >= 5.0
-- npm or yarn
+---
 
-cd backend
-npm install 
-npm run dev
-
+## 🔒 Security Features
+- **JWT Protection:** Secure access to private endpoints.
+- **Input Validation:** Powered by Joi.
+- **Middleware:** Helmet, CORS, and data sanitization enabled by default.
