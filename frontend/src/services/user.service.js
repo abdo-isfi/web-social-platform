@@ -19,6 +19,11 @@ export const userService = {
   getUserPosts: async (userId, page = 1, limit = 5) => {
     return await api.get(`/user/${userId}/posts?page=${page}&limit=${limit}`);
   },
+  
+  // Get user replies/comments
+  getUserReplies: async (userId, page = 1, limit = 5) => {
+    return await api.get(`/user/${userId}/replies?page=${page}&limit=${limit}`);
+  },
 
   // Get suggestions
   getSuggestions: async () => {

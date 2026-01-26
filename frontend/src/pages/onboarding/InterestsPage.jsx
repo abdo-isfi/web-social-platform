@@ -78,7 +78,7 @@ export function InterestsPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-3 mb-12">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 w-full mb-12">
         {INTEREST_OPTIONS.map((option) => {
           const isSelected = selected.includes(option.id);
           return (
@@ -86,17 +86,17 @@ export function InterestsPage() {
               key={option.id}
               onClick={() => toggleInterest(option.id)}
               className={cn(
-                "group relative flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all duration-300 active:scale-95",
+                "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 gap-2 group relative overflow-hidden aspect-square sm:aspect-auto sm:h-32",
                 isSelected 
-                  ? "bg-primary border-primary text-white shadow-lg shadow-primary/25 scale-105" 
-                  : "bg-card border-border/50 hover:border-primary/50 text-foreground hover:bg-primary/5"
+                  ? "bg-primary/10 border-primary/50 text-primary ring-1 ring-primary/20 shadow-md transform scale-[0.98]" 
+                  : "bg-muted/30 border-transparent hover:bg-muted hover:border-border/50 text-muted-foreground hover:text-foreground hover:scale-[1.02]"
               )}
             >
-              <span className="text-2xl">{option.icon}</span>
-              <span className="font-bold text-base">{option.label}</span>
+              <span className="text-4xl sm:text-3xl group-hover:scale-110 transition-transform duration-300">{option.icon}</span>
+              <span className="text-sm font-bold tracking-tight text-center leading-tight">{option.label}</span>
               {isSelected && (
-                <div className="absolute -top-2 -right-2 bg-white text-primary rounded-full p-0.5 shadow-md">
-                  <Check className="w-4 h-4" strokeWidth={3} />
+                <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm">
+                  <Check className="w-3 h-3" strokeWidth={4} />
                 </div>
               )}
             </button>

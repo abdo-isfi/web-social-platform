@@ -126,7 +126,7 @@ const createComment = async (req, res) => {
     broadcast('post_updated', { postId: threadId, commentCount });
     broadcast('comment_new', { threadId: threadId, comment: populatedComment });
 
-    return responseHandler.success(res, populatedComment, "Comment added", statusCodes.CREATED);
+    return responseHandler.success(res, { comment: populatedComment, commentCount }, "Comment added", statusCodes.CREATED);
   } catch (error) {
     console.error("Create comment error:", error);
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);

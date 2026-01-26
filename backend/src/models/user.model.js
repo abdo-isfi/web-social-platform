@@ -112,6 +112,15 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  
+  // Preferences
+  notificationPreferences: {
+    enabled: { type: Boolean, default: true },
+    likes: { type: Boolean, default: true },
+    comments: { type: Boolean, default: true },
+    follows: { type: Boolean, default: true },
+    mentions: { type: Boolean, default: true }
+  },
 
   // Authentication Security
   refreshToken: {

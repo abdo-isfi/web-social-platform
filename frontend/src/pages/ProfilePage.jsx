@@ -35,10 +35,12 @@ export function ProfilePage() {
   const [deletingPostId, setDeletingPostId] = useState(null);
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [replies, setReplies] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
   const [archivedPosts, setArchivedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [loadingReplies, setLoadingReplies] = useState(false);
   const [loadingArchived, setLoadingArchived] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('posts');
@@ -128,6 +130,19 @@ export function ProfilePage() {
     }
   };
 
+  const fetchReplies = async () => {
+    try {
+        setLoadingReplies(true);
+        const userId = id === 'me' ? (currentUser?._id || currentUser?.id) : id;
+        const response = await userService.getUserReplies(userId, 1, 40);
+        setReplies(response.threads || response || []);
+    } catch (error) {
+        console.error("Failed to fetch replies", error);
+    } finally {
+        setLoadingReplies(false);
+    }
+  };
+
   const fetchProfileAndPosts = useCallback(async () => {
     try {
       setLoading(true);
@@ -156,6 +171,9 @@ export function ProfilePage() {
       
       if (activeTab === 'likes' && (isOwnProfile || !profileData.isPrivate)) {
           fetchLikedPosts();
+      }
+      if (activeTab === 'replies' && (isOwnProfile || !profileData.isPrivate)) {
+          fetchReplies();
       }
     } catch (err) {
       console.error('Error fetching profile:', err);
@@ -209,6 +227,9 @@ export function ProfilePage() {
       }
       if (activeTab === 'archived' && archivedPosts.length === 0 && isOwnProfile) {
           fetchArchivedPosts();
+      }
+      if (activeTab === 'replies' && replies.length === 0 && profile && !profile.isPrivateView) {
+          fetchReplies();
       }
   }, [activeTab, profile, isOwnProfile]);
 
@@ -417,14 +438,12 @@ export function ProfilePage() {
     });
   };
 
-  const filteredPosts = posts.filter(post => {
-    const isReply = !!(post.repostOf ? post.repostOf.parentThread : post.parentThread);
-    if (activeTab === 'posts') return !isReply;
-    if (activeTab === 'replies') return isReply;
-    return false;
-  });
+  const filteredPosts = activeTab === 'posts' ? posts.filter(post => !(post.repostOf ? post.repostOf.parentThread : post.parentThread)) : [];
 
-  const displayList = activeTab === 'likes' ? likedPosts : activeTab === 'archived' ? archivedPosts : filteredPosts;
+  const displayList = activeTab === 'likes' ? likedPosts 
+    : activeTab === 'archived' ? archivedPosts 
+    : activeTab === 'replies' ? replies
+    : filteredPosts;
 
   const handleEditProfile = () => {
     setIsEditModalOpen(true);
@@ -464,6 +483,9 @@ export function ProfilePage() {
       />
     );
   }
+  const isRefreshing = (loadingLikes && activeTab === 'likes') || 
+                       (loadingArchived && activeTab === 'archived') || 
+                       (loadingReplies && activeTab === 'replies');
 
   return (
     <>
@@ -616,7 +638,7 @@ export function ProfilePage() {
                   <p className="text-muted-foreground/80 font-medium mt-2">Only approved followers can see {profile.firstName}'s posts.</p>
               </div>
             </div>
-          ) : (loadingLikes && activeTab === 'likes') || (loadingArchived && activeTab === 'archived') ? (
+          ) : isRefreshing ? (
             <div className="w-full max-w-2xl">
               <PostSkeleton />
             </div>
@@ -644,6 +666,7 @@ export function ProfilePage() {
                     content={{
                       text: displayPost.content || displayPost.text || '',
                       media: displayPost.media ? (Array.isArray(displayPost.media) ? displayPost.media : [displayPost.media]) : [],
+                      parentThread: displayPost.parentThread
                     }}
                     engagement={{
                       likes: displayPost.likeCount || 0,

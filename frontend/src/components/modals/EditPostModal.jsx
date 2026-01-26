@@ -12,6 +12,7 @@ export function EditPostModal({ isOpen, onClose, post, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [currentMedia, setCurrentMedia] = useState([]);
   const [newMedia, setNewMedia] = useState([]);
+  const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
@@ -22,6 +23,16 @@ export function EditPostModal({ isOpen, onClose, post, onSuccess }) {
       if (post.media) existingMedia = Array.isArray(post.media) ? post.media : [post.media];
       setCurrentMedia(existingMedia.map(m => ({ ...m, preview: m.url, isExisting: true })));
       setNewMedia([]);
+
+      // Focus and move cursor to end
+      const timer = setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const length = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(length, length);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [post, isOpen]);
 
@@ -77,7 +88,13 @@ export function EditPostModal({ isOpen, onClose, post, onSuccess }) {
                 <UserAvatar user={user} className="w-full h-full object-cover"/>
              </div>
              <div className="flex-1">
-                <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="What is happening?!" className="w-full bg-transparent border border-border rounded-xl p-3 text-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-h-[120px] resize-none"/>
+                <textarea 
+                  ref={textareaRef}
+                  value={content} 
+                  onChange={(e) => setContent(e.target.value)} 
+                  placeholder="What is happening?!" 
+                  className="w-full bg-transparent border border-border rounded-xl p-3 text-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-h-[120px] resize-none"
+                />
                 {displayMedia.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto pb-2 mt-4">
                     {displayMedia.map((item, idx) => (

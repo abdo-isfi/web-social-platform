@@ -33,14 +33,16 @@ export const createPost = createAsyncThunk(
 export const likePost = createAsyncThunk(
   'posts/likePost',
   async (postId) => {
-    return await postService.likePost(postId);
+    const response = await postService.likePost(postId);
+    return { postId, ...response }; // response is { like, likeCount }
   }
 );
 
 export const unlikePost = createAsyncThunk(
   'posts/unlikePost',
   async (postId) => {
-    return await postService.unlikePost(postId);
+    const response = await postService.unlikePost(postId);
+    return { postId, ...response }; // response is { likeCount }
   }
 );
 
@@ -48,7 +50,8 @@ export const addComment = createAsyncThunk(
   'posts/addComment',
   async ({ postId, content, parentCommentId }) => {
     const response = await postService.addComment(postId, content, parentCommentId);
-    return { postId, comment: response };
+    // response maps to { comment, commentCount }
+    return { postId, comment: response.comment, commentCount: response.commentCount };
   }
 );
 
@@ -155,15 +158,15 @@ const postSlice = createSlice({
       // Like post
       .addCase(likePost.fulfilled, (state, action) => {
         const postId = action.meta.arg;
+        const { likeCount } = action.payload;
+        
         state.posts.forEach(post => {
-          // Update the post itself if it matches
           if (post._id === postId) {
-            post.likeCount = (post.likeCount || 0) + 1;
+            post.likeCount = likeCount;
             post.isLiked = true;
           }
-          // Update nested repost if it matches
           if (post.repostOf && post.repostOf._id === postId) {
-            post.repostOf.likeCount = (post.repostOf.likeCount || 0) + 1;
+            post.repostOf.likeCount = likeCount;
             post.repostOf.isLiked = true;
           }
         });
@@ -171,26 +174,28 @@ const postSlice = createSlice({
       // Unlike post
       .addCase(unlikePost.fulfilled, (state, action) => {
         const postId = action.meta.arg;
+        const { likeCount } = action.payload;
+        
         state.posts.forEach(post => {
           if (post._id === postId) {
-            post.likeCount = Math.max((post.likeCount || 0) - 1, 0);
+            post.likeCount = likeCount;
             post.isLiked = false;
           }
           if (post.repostOf && post.repostOf._id === postId) {
-            post.repostOf.likeCount = Math.max((post.repostOf.likeCount || 0) - 1, 0);
+            post.repostOf.likeCount = likeCount;
             post.repostOf.isLiked = false;
           }
         });
       })
       // Add comment
       .addCase(addComment.fulfilled, (state, action) => {
-        const { postId } = action.payload;
+        const { postId, commentCount } = action.payload;
         state.posts.forEach(post => {
           if (post._id === postId) {
-            post.commentCount = (post.commentCount || 0) + 1;
+            post.commentCount = commentCount;
           }
           if (post.repostOf && post.repostOf._id === postId) {
-            post.repostOf.commentCount = (post.repostOf.commentCount || 0) + 1;
+            post.repostOf.commentCount = commentCount;
           }
         });
       })

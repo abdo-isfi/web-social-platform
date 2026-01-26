@@ -43,6 +43,29 @@ export function SettingsPage() {
     }
   };
 
+  const handleNotificationToggle = (key, checked) => {
+    // Optimistic update
+    const currentPrefs = user?.notificationPreferences || { 
+      enabled: true, likes: true, comments: true, follows: true, mentions: true 
+    };
+    
+    let newPrefs;
+    if (key === 'enabled') {
+        newPrefs = { ...currentPrefs, enabled: checked };
+    } else {
+        newPrefs = { ...currentPrefs, [key]: checked };
+    }
+    
+    // Update local state (optimistic)
+    dispatch(updateUser({ notificationPreferences: newPrefs }));
+    
+    // Send to backend
+    userService.updateProfile({ notificationPreferences: JSON.stringify(newPrefs) }).catch(err => {
+        console.error("Failed to update notification preferences", err);
+        // Revert on error could be implemented here
+    });
+  };
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
@@ -153,14 +176,34 @@ export function SettingsPage() {
                             onCheckedChange={handleThemeToggle}
                           />
                       </div>
-                      <div className="p-6 flex items-center justify-between hover:bg-primary/[0.04] transition-all group/item cursor-pointer">
-                          <div className="space-y-1">
-                              <div className="text-base font-bold flex items-center gap-2 group-hover/item:text-primary transition-colors">
-                                <Bell className="w-4 h-4 text-primary/70" /> Notifications
+                      <div className="p-6 transition-all group/item">
+                          <div className="flex items-center justify-between mb-4">
+                              <div className="space-y-1">
+                                  <div className="text-base font-bold flex items-center gap-2 text-primary">
+                                    <Bell className="w-4 h-4" /> Notifications
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">Manage your alert preferences</div>
                               </div>
-                              <div className="text-sm text-muted-foreground group-hover/item:text-muted-foreground/80 transition-colors">Manage your alert preferences</div>
+                              <Switch 
+                                checked={user?.notificationPreferences?.enabled ?? true} 
+                                onCheckedChange={(c) => handleNotificationToggle('enabled', c)}
+                              />
                           </div>
-                          <Switch defaultChecked />
+                          
+                          {(user?.notificationPreferences?.enabled ?? true) && (
+                              <div className="pl-6 space-y-4 pt-2 border-t border-border/10">
+                                  {['likes', 'comments', 'follows', 'mentions'].map(type => (
+                                      <div key={type} className="flex items-center justify-between">
+                                          <label className="text-sm font-medium capitalize text-foreground/80">{type}</label>
+                                          <Switch 
+                                            size="sm"
+                                            checked={user?.notificationPreferences?.[type] ?? true} 
+                                            onCheckedChange={(c) => handleNotificationToggle(type, c)}
+                                          />
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
                       </div>
                       <div className="p-6 flex items-center justify-between hover:bg-primary/[0.04] transition-all group/item cursor-pointer" onClick={() => handlePrivacyToggle(!user?.isPrivate)}>
                           <div className="space-y-1">

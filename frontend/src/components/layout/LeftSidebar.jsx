@@ -74,9 +74,14 @@ export function LeftSidebar() {
         <div className="mt-8 mx-2 p-6 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-sm">
           <h3 className="font-bold text-lg mb-2 text-foreground">New here?</h3>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Sign up now to join the community and share your thoughts.</p>
-          <Button className="w-full rounded-full py-6 font-bold text-base shadow-md hover:shadow-lg transition-all active:scale-95" onClick={() => dispatch(openAuthModal('signup'))}>
-            Join Now
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button className="w-full rounded-full py-6 font-bold text-base shadow-md hover:shadow-lg transition-all active:scale-95" onClick={() => dispatch(openAuthModal('signup'))}>
+              Sign up
+            </Button>
+            <Button variant="outline" className="w-full rounded-full py-6 font-bold text-base border-2 bg-transparent hover:bg-background/50 hover:border-primary/50 transition-all active:scale-95" onClick={() => dispatch(openAuthModal('login'))}>
+              Sign in
+            </Button>
+          </div>
         </div>
       )}
 

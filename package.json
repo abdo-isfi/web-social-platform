@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Root orchestrator for Social Media Platform",
   "scripts": {
-    "start": "./start.sh",
+    "start": "bash start.sh",
     "stop": "docker compose down",
     "logs": "docker compose logs -f",
     "clean": "docker compose down -v"

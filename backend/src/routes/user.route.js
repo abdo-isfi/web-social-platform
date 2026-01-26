@@ -23,5 +23,6 @@ router.patch('/change-password', authenticate, userController.changePassword);
 router.post('/interests', authenticate, userController.saveInterests);
 router.get('/:userId', optionalAuth, getUserById);
 router.get('/:userId/posts', optionalAuth, pagination, userController.getUserPosts);
+router.get('/:userId/replies', optionalAuth, pagination, userController.getUserReplies);
 
 module.exports = router;

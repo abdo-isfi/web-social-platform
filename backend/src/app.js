@@ -23,6 +23,7 @@ const followerRoute = require("./routes/follow.route");
 const notificationRoute = require("./routes/notification.route");
 
 const app = express();
+app.set("trust proxy", 1);
 
 /**
  * MIDDLEWARE CONFIGURATION

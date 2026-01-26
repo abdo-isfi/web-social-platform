@@ -98,9 +98,10 @@ const likeThread = async (req, res) => {
     }
 
     // 5. Trigger real-time refresh (Fire and Forget)
+    const count = await Like.countDocuments({ [targetType]: threadId });
     updateLikeCount(threadId, targetType);
 
-    return responseHandler.success(res, like, "Liked successfully", statusCodes.CREATED);
+    return responseHandler.success(res, { like, likeCount: count }, "Liked successfully", statusCodes.CREATED);
 
   } catch (error) {
     if (error.code === 11000) return responseHandler.error(res, "Already liked", statusCodes.CONFLICT);
@@ -134,10 +135,11 @@ const unlikeThread = async (req, res) => {
     });
 
     // Real-time update: decrease the count instantly in the UI
-    if (like.thread) updateLikeCount(like.thread, 'thread');
-    else if (like.comment) updateLikeCount(like.comment, 'comment');
+    const targetType = like.thread ? 'thread' : 'comment';
+    const count = await Like.countDocuments({ [targetType]: threadId });
+    updateLikeCount(threadId, targetType);
 
-    return responseHandler.success(res, null, "Like removed successfully", statusCodes.DELETED);
+    return responseHandler.success(res, { likeCount: count }, "Like removed successfully", statusCodes.DELETED);
 
   } catch (error) {
     return responseHandler.error(res, null, statusCodes.INTERNAL_SERVER_ERROR);

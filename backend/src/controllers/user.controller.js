@@ -89,6 +89,18 @@ const updateProfile = async (req, res) => {
     if (website !== undefined) user.website = website;
     if (birthday !== undefined) user.birthday = birthday;
     if (showBirthday !== undefined) user.showBirthday = showBirthday === true || showBirthday === 'true';
+    
+    if (req.body.notificationPreferences) {
+        // Handle partial updates to notification preferences
+        const newPrefs = typeof req.body.notificationPreferences === 'string' 
+            ? JSON.parse(req.body.notificationPreferences) 
+            : req.body.notificationPreferences;
+            
+        user.notificationPreferences = {
+            ...user.notificationPreferences,
+            ...newPrefs
+        };
+    }
 
     // 4. Handle FILE UPLOADS (Avatar/Banner)
     // Priority: New File > String URL (Delete/Reset) > Keep Existing
@@ -161,7 +173,8 @@ const updateProfile = async (req, res) => {
       website: user.website,
       birthday: user.birthday,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      notificationPreferences: user.notificationPreferences
     };
 
     return responseHandler.success(res, userResponse, 'Profile updated successfully', statusCodes.UPDATED);
@@ -492,11 +505,98 @@ const changePassword = async (req, res) => {
   }
 };
 
+const getUserReplies = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const currentUserId = req.user?.id;
+    const { page, limit } = req.pagination || { page: 1, limit: 10 };
+    const skip = (page - 1) * limit;
+
+    const targetUser = await User.findById(userId);
+    if (!targetUser) return responseHandler.notFound(res, 'User');
+
+    // Check privacy
+    let isFollowing = false;
+    if (currentUserId) {
+        const Follow = require('../models/follower.model');
+        const follow = await Follow.findOne({ follower: currentUserId, following: userId, status: 'ACCEPTED' });
+        isFollowing = !!follow;
+    }
+    const isAuthorized = currentUserId && (currentUserId === userId || isFollowing);
+    if (targetUser.isPrivate && !isAuthorized) {
+        return responseHandler.success(res, {
+            threads: [],
+            pagination: { totalThreads: 0, totalPages: 0, currentPage: page, pageSize: limit }
+        }, 'Profile is private', statusCodes.SUCCESS);
+    }
+
+    const Comment = require('../models/comment.model');
+    const totalReplies = await Comment.countDocuments({ author: userId });
+    
+    const replies = await Comment.find({ author: userId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('author', '_id firstName lastName avatar avatarType')
+      .populate({
+        path: 'thread',
+        populate: { path: 'author', select: '_id firstName lastName avatar avatarType' }
+      })
+      .lean();
+
+    // Format comments to look like threads for the frontend
+    const { formatThreadResponse } = require('../utils/threadFormatter');
+    const { refreshPresignedUrl } = require('../utils/minioHelper');
+    const Like = require('../models/like.model');
+
+    const formattedReplies = await Promise.all(replies.map(async (reply) => {
+        // Handle avatar refresh
+        if (reply.author?.avatar?.key) {
+            reply.author.avatar.url = await refreshPresignedUrl(reply.author.avatar.key);
+        }
+
+        const isLiked = currentUserId ? !!await Like.findOne({ user: currentUserId, comment: reply._id }) : false;
+        const likeCount = await Like.countDocuments({ comment: reply._id });
+
+        // We return it in a format compatible with formatThreadResponse's expectations or similar
+        return {
+            _id: reply._id,
+            id: reply._id,
+            content: reply.content,
+            author: reply.author,
+            createdAt: reply.createdAt,
+            parentThread: reply.thread, // Link to the original thread
+            likeCount,
+            commentCount: 0, // Comments on comments not easily tracked here without sub-query
+            isLiked,
+            isComment: true, // Flag for frontend
+            permissions: {
+                isOwner: currentUserId === userId,
+                canDelete: currentUserId === userId,
+                canEdit: currentUserId === userId
+            }
+        };
+    }));
+
+    const totalPages = Math.ceil(totalReplies / limit);
+
+    return responseHandler.success(res, {
+        threads: formattedReplies,
+        pagination: { totalThreads: totalReplies, totalPages, currentPage: page, pageSize: limit }
+    }, "User replies fetched successfully", statusCodes.SUCCESS);
+
+  } catch (error) {
+    console.error('Get user replies error:', error);
+    return responseHandler.error(res, 'Failed to fetch user replies', statusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
 module.exports = {
   createUser,
   updateProfile,
   getUserById,
   getUserPosts,
+  getUserReplies,
   getSuggestions,
   updatePrivacy,
   deleteAccount,

@@ -99,6 +99,17 @@ export function SocialCard({
             </div>
           )}
 
+          {/* Reply Header */}
+          {content?.parentThread?.author && (
+            <div className="flex items-center gap-1.5 mb-3 px-1 text-xs font-medium text-muted-foreground">
+               <MessageCircle className="w-3 h-3" />
+               <span>Replying to</span>
+               <Link to={`/profile/${content.parentThread.author._id || content.parentThread.author.id}`} className="text-primary hover:underline font-bold">
+                 @{((content.parentThread.author.firstName || '') + (content.parentThread.author.lastName || '')).toLowerCase().replace(/[^a-z0-9]/g, '')}
+               </Link>
+            </div>
+          )}
+
           {/* Author section */}
           <div className="flex items-center justify-between mb-5">
             <Link to={`/profile/${author?._id || author?.id}`} className="flex items-center gap-4 group/author">

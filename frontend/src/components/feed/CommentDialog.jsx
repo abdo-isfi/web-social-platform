@@ -9,14 +9,28 @@ import { useSelector } from 'react-redux';
 export function CommentDialog({ open, onOpenChange, onSubmit, loading, title = "Reply to post", initialContent = "" }) {
   const [content, setContent] = useState('');
   const [showPicker, setShowPicker] = useState(false);
+  const textareaRef = useRef(null);
   const pickerRef = useRef(null);
   const { theme } = useSelector(state => state.ui);
 
-  // Set initial content when dialog opens
+  // Set initial content and focus when dialog opens
   useEffect(() => {
-    if (open && initialContent) {
-      setContent(initialContent);
-    } else if (!open) {
+    if (open) {
+      if (initialContent) {
+        setContent(initialContent);
+      }
+      
+      // Focus and move cursor to end
+      const timer = setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const length = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(length, length);
+        }
+      }, 100); // Slight delay for dialog animation
+      
+      return () => clearTimeout(timer);
+    } else {
       setContent('');
     }
   }, [open, initialContent]);
@@ -59,6 +73,7 @@ export function CommentDialog({ open, onOpenChange, onSubmit, loading, title = "
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="relative">
              <Textarea
+                ref={textareaRef}
                 className="min-h-[100px] pr-10 resize-none"
                 placeholder="Post your reply"
                 value={content}

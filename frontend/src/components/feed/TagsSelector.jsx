@@ -87,29 +87,29 @@ export function TagsSelector({ selectedTags, onTagsChange }) {
         <div className="px-1">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Suggestions</span>
         </div>
-        <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+        <div className="grid grid-cols-3 gap-2.5 max-h-[220px] overflow-y-auto pr-1 no-scrollbar">
           <AnimatePresence mode="popLayout">
             {availableTags.map((tag) => (
               <motion.button
                 key={tag.id}
                 layoutId={`tag-${tag.id}`}
-                whileHover={{ scale: 1.05, translateY: -2 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 onClick={() => addTag(tag.id)}
-                className="flex items-center gap-3 px-5 py-3 bg-muted/20 hover:bg-card border border-border/50 hover:border-primary/30 rounded-2xl shrink-0 transition-all group shadow-sm hover:shadow-md hover:shadow-primary/5 relative overflow-hidden"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border bg-muted/20 hover:bg-muted border-border/50 hover:border-border transition-all duration-300 gap-1.5 group relative overflow-hidden aspect-square"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-xl group-hover:scale-110 transition-transform relative z-10">{tag.icon}</span>
+                <span className="text-2xl group-hover:scale-110 transition-transform duration-300 relative z-10">{tag.icon}</span>
                 <motion.span
                   layoutId={`tag-${tag.id}-label`}
-                  className="text-sm font-bold text-foreground/70 group-hover:text-primary transition-colors relative z-10"
+                  className="text-[10px] font-black tracking-tight text-center leading-tight text-muted-foreground group-hover:text-foreground transition-colors relative z-10"
                 >
                   {tag.label}
                 </motion.span>
-                <div className="ml-2 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 relative z-10">
-                  <Plus className="w-3.5 h-3.5 text-primary" />
+                <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                 </div>
               </motion.button>
             ))}

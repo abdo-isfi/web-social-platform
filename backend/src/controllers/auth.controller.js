@@ -78,7 +78,8 @@ const register = async (req, res) => {
       birthday: user.birthday,
       interests: user.interests,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      notificationPreferences: user.notificationPreferences
     };
 
     // 8. Set Refresh Token in a cookie (Secure and HTTPOnly!)
@@ -143,7 +144,8 @@ const login = async (req, res) => {
       birthday: user.birthday,
       interests: user.interests,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      notificationPreferences: user.notificationPreferences
     };
 
     // 5. Set Cookie
@@ -257,7 +259,8 @@ const getCurrentUser = async (req, res) => {
       birthday: user.birthday,
       interests: user.interests,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      notificationPreferences: user.notificationPreferences
     };
 
     return responseHandler.success(res, userResponse, 'Current user fetched successfully', statusCodes.SUCCESS);
