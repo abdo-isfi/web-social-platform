@@ -1,0 +1,22 @@
+ Perspectives d'Évolution
+
+Ce projet est conçu avec l'évolutivité (scalability) à l'esprit. Les futures phases de développement se concentreront sur :
+
+🧠 Phase 1 : IA & Personnalisation
+
+Moteur de Recommandation : Algorithmes basés sur les graphes pour suggérer des amis et du contenu pertinent.
+Traduction Automatique : Intégration d'API de traduction pour briser les barrières linguistiques.
+Modération Intelligente : Filtrage par IA pour le contenu inapproprié.
+
+⚡ Phase 2 : Engagement Renforcé
+
+Messagerie Instantanée : Chat en temps réel avec indicateurs de saisie et confirmations de lecture.
+Stories Temporaires : Mises à jour de statut éphémères (visibles 24h) pour renforcer la rétention des utilisateurs.
+Système de Mentions : Support des mentions (@utilisateur) à l'échelle du système.
+
+🔒 Phase 3 : Sécurité & Confidentialité
+
+Chiffrement de Bout en Bout (E2E) : Sécurisation des conversations privées.
+Authentification Multi-Facteurs (MFA) : Ajout d'une couche supplémentaire de sécurité pour les comptes.
+Tableau de Bord Analytique : Un dashboard pour visualiser la croissance des utilisateurs et les métriques d'engagement.
+
