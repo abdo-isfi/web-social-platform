@@ -4,8 +4,15 @@ Ce dossier contient la documentation et les ressources visuelles du projet Socia
 
 Certains fichiers volumineux (comme la présentation PowerPoint et les vidéos de démonstration) sont hébergés sur un cloud externe.
 
-## 📂 Accéder aux Fichiers Complets
+## 📂 Contenu du Dossier Drive
 
-Retrouvez le rapport, la présentation (PPTX), les vidéos et autres ressources ici :
+Vous pouvez télécharger les fichiers suivants via le lien ci-dessous :
+
+- 📄 **Rapport de Projet** (`social_app_documentation.pdf`)
+- 🎬 **Démo de l'Application** (`Social_App.mp4`)
+- 🚀 **Vidéo de Déploiement** (`social_deploy.mp4`)
+- 📊 **Présentation PowerPoint** (`Social_vf.pptx`)
+
+## 🔗 Lien d'Accès
 
 👉 **[Google Drive - Dossier Ressources](https://drive.google.com/drive/folders/1kXp6UMLMEj22fAFNF-kK3j5a5D1MslP3)**
